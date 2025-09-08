@@ -4,7 +4,8 @@
       "Bash(pnpm add:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(npm run dev:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

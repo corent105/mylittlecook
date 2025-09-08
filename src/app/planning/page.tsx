@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
+import Link from "next/link";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
@@ -44,7 +45,7 @@ export default function PlanningPage() {
     enabled: !!selectedSlot && searchQuery.length > 0,
   });
   
-  const { data: allRecipes = [] } = api.recipe.getAll.useQuery({
+  const { data: allRecipes } = api.recipe.getAll.useQuery({
     limit: 20,
   });
   
@@ -75,12 +76,6 @@ export default function PlanningPage() {
     return new Date(start.setDate(diff));
   }
 
-  const getWeekStart = (date: Date) => {
-    const start = new Date(date);
-    const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(start.setDate(diff));
-  };
 
   const formatWeekRange = (weekStart: Date) => {
     const weekEnd = new Date(weekStart);
@@ -103,37 +98,48 @@ export default function PlanningPage() {
   };
 
   const getMealForSlot = (day: number, mealType: MealType) => {
-    return meals.find(m => m.day === day && m.mealType === mealType);
+    // Convert MealType to match database enum
+    const mealTypeMap: Record<MealType, string> = {
+      'Petit-déjeuner': 'BREAKFAST',
+      'Déjeuner': 'LUNCH',  
+      'Dîner': 'DINNER'
+    };
+    
+    return mealPlan.find(m => 
+      m.dayOfWeek === day && 
+      m.mealType === mealTypeMap[mealType]
+    );
   };
 
   const handleSlotClick = (day: number, mealType: MealType) => {
     setSelectedSlot({ day, mealType });
   };
 
-  const mockRecipes = [
-    { id: '1', title: 'Pâtes à la carbonara', imageUrl: '' },
-    { id: '2', title: 'Salade César', imageUrl: '' },
-    { id: '3', title: 'Ratatouille', imageUrl: '' },
-    { id: '4', title: 'Croque-monsieur', imageUrl: '' },
-  ];
+  const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes ? allRecipes.recipes : []);
 
-  const filteredRecipes = mockRecipes.filter(recipe =>
-    recipe.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const addRecipeToSlot = (recipe: typeof mockRecipes[0]) => {
+  const addRecipeToSlot = async (recipe: { id: string; title: string }) => {
     if (!selectedSlot) return;
     
-    setMeals(prev => [
-      ...prev.filter(m => !(m.day === selectedSlot.day && m.mealType === selectedSlot.mealType)),
-      {
-        day: selectedSlot.day,
-        mealType: selectedSlot.mealType,
-        recipe
-      }
-    ]);
-    setSelectedSlot(null);
-    setSearchQuery('');
+    const mealTypeMap: Record<MealType, string> = {
+      'Petit-déjeuner': 'BREAKFAST',
+      'Déjeuner': 'LUNCH',  
+      'Dîner': 'DINNER'
+    };
+    
+    try {
+      await addMealMutation.mutateAsync({
+        projectId: TEMP_PROJECT_ID,
+        weekStart,
+        dayOfWeek: selectedSlot.day,
+        mealType: mealTypeMap[selectedSlot.mealType] as any,
+        recipeId: recipe.id,
+      });
+      
+      setSelectedSlot(null);
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Error adding meal:', error);
+    }
   };
 
   return (
@@ -179,7 +185,14 @@ export default function PlanningPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button className="bg-orange-600 hover:bg-orange-700">
+          <Button 
+            className="bg-orange-600 hover:bg-orange-700"
+            onClick={() => {
+              // For now, just navigate to a shopping list page
+              // In a real app, this would generate and display the shopping list
+              window.open('/liste-de-courses', '_blank');
+            }}
+          >
             Générer liste de courses
           </Button>
         </div>
@@ -210,9 +223,14 @@ export default function PlanningPage() {
                   >
                     {meal?.recipe ? (
                       <div className="text-sm">
-                        <div className="font-medium text-gray-900 mb-1">
+                        <div className="font-medium text-gray-900 mb-1 line-clamp-2">
                           {meal.recipe.title}
                         </div>
+                        {meal.recipe.prepTime && (
+                          <div className="text-xs text-gray-500">
+                            {meal.recipe.prepTime} min
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-400">
@@ -254,30 +272,69 @@ export default function PlanningPage() {
               </div>
 
               <div className="max-h-64 overflow-y-auto">
-                {filteredRecipes.map((recipe) => (
-                  <div
-                    key={recipe.id}
-                    className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer rounded-md"
-                    onClick={() => addRecipeToSlot(recipe)}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
-                        <ChefHat className="h-6 w-6 text-gray-400" />
+                {recipesLoading ? (
+                  <div className="p-4 text-center text-gray-500">Recherche en cours...</div>
+                ) : displayedRecipes.length > 0 ? (
+                  displayedRecipes.map((recipe) => (
+                    <div
+                      key={recipe.id}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer rounded-md"
+                      onClick={() => addRecipeToSlot(recipe)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center overflow-hidden">
+                          {recipe.imageUrl ? (
+                            <img 
+                              src={recipe.imageUrl} 
+                              alt={recipe.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <ChefHat className="h-6 w-6 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{recipe.title}</div>
+                          {recipe.description && (
+                            <div className="text-sm text-gray-500 truncate">
+                              {recipe.description}
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
+                            {recipe.prepTime && <span>{recipe.prepTime}min</span>}
+                            {recipe.servings && <span>{recipe.servings} pers.</span>}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium">{recipe.title}</div>
-                      </div>
+                      <Button 
+                        size="sm" 
+                        disabled={addMealMutation.isPending}
+                        className="ml-2"
+                      >
+                        {addMealMutation.isPending ? 'Ajout...' : 'Ajouter'}
+                      </Button>
                     </div>
-                    <Button size="sm">Ajouter</Button>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    {searchQuery ? 'Aucune recette trouvée' : 'Aucune recette disponible'}
                   </div>
-                ))}
+                )}
               </div>
 
-              <div className="mt-4 pt-4 border-t">
-                <Button variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer une nouvelle recette
-                </Button>
+              <div className="mt-4 pt-4 border-t space-y-2">
+                <Link href="/recettes/nouvelle">
+                  <Button variant="outline" className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer une nouvelle recette
+                  </Button>
+                </Link>
+                <Link href="/recettes/importer">
+                  <Button variant="outline" className="w-full">
+                    <Download className="h-4 w-4 mr-2" />
+                    Importer depuis un lien
+                  </Button>
+                </Link>
               </div>
             </Card>
           </div>
