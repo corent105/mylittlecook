@@ -1,4 +1,6 @@
-PRD – Application de Planification de Repas Collaborative
+PRD – Application de Planification de Repas Collaborative - My Little Cook
+
+Nom de l'application : My Little Cook
 
 1. Contexte et Objectif
 
