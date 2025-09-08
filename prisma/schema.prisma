@@ -1,0 +1,178 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ownedProjects Project[] @relation("ProjectOwner")
+  projectMemberships ProjectMember[]
+  recipes       Recipe[]
+  favorites     UserFavorite[]
+
+  @@map("users")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ownerId   String
+  owner     User @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   ProjectMember[]
+  mealPlans MealPlan[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  role      ProjectRole @default(CONTRIBUTOR)
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@map("project_members")
+}
+
+model MealPlan {
+  id        String   @id @default(cuid())
+  week      DateTime // Start of the week
+  dayOfWeek Int      // 0 = Monday, 6 = Sunday
+  mealType  MealType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  recipeId  String?
+  recipe    Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, week, dayOfWeek, mealType])
+  @@map("meal_plans")
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  content     String   // Markdown content
+  imageUrl    String?
+  servings    Int?
+  prepTime    Int?     // minutes
+  cookTime    Int?     // minutes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  authorId    String?
+  author      User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  ingredients RecipeIngredient[]
+  mealPlans   MealPlan[]
+  favorites   UserFavorite[]
+  tags        RecipeTag[]
+
+  @@map("recipes")
+}
+
+model Ingredient {
+  id       String @id @default(cuid())
+  name     String @unique
+  unit     String // "g", "ml", "pièce", etc.
+  category String? // "légumes", "viandes", etc.
+
+  // Relations
+  recipes RecipeIngredient[]
+
+  @@map("ingredients")
+}
+
+model RecipeIngredient {
+  id       String @id @default(cuid())
+  quantity Float
+  notes    String? // Optional notes like "chopped", "diced"
+
+  // Relations
+  recipeId     String
+  recipe       Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_ingredients")
+}
+
+model Tag {
+  id      String @id @default(cuid())
+  name    String @unique
+  color   String? // Hex color for UI
+
+  // Relations
+  recipes RecipeTag[]
+
+  @@map("tags")
+}
+
+model RecipeTag {
+  id String @id @default(cuid())
+
+  // Relations
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tagId    String
+  tag      Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, tagId])
+  @@map("recipe_tags")
+}
+
+model UserFavorite {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId   String
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipeId])
+  @@map("user_favorites")
+}
+
+enum ProjectRole {
+  OWNER
+  CONTRIBUTOR
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}

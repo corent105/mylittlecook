@@ -1,102 +1,109 @@
-import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Calendar, ChefHat, ShoppingCart, Users } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+      {/* Header */}
+      <header className="border-b bg-white/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <ChefHat className="h-8 w-8 text-orange-600" />
+            <h1 className="text-2xl font-bold text-gray-900">My Little Cook</h1>
+          </div>
+          <nav className="hidden md:flex space-x-6">
+            <Button variant="ghost">Accueil</Button>
+            <Button variant="ghost">Planning</Button>
+            <Button variant="ghost">Recettes</Button>
+            <Button variant="ghost">Liste de courses</Button>
+          </nav>
+          <Button>Se connecter</Button>
+        </div>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Hero Section */}
+      <main className="container mx-auto px-4 py-12">
+        <div className="text-center mb-16">
+          <h2 className="text-5xl font-bold text-gray-900 mb-6">
+            Planifiez vos repas en famille
+          </h2>
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Créez des plannings de repas collaboratifs, gérez vos recettes en Markdown 
+            et générez automatiquement vos listes de courses. Simplifiez votre quotidien culinaire.
+          </p>
+          <div className="space-x-4">
+            <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
+              Commencer gratuitement
+            </Button>
+            <Button size="lg" variant="outline">
+              Voir la démo
+            </Button>
+          </div>
+        </div>
+
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+            <Calendar className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Planning hebdomadaire</h3>
+            <p className="text-gray-600 text-sm">
+              Organisez vos repas sur une grille intuitive jour par jour
+            </p>
+          </Card>
+          
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+            <ChefHat className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Recettes Markdown</h3>
+            <p className="text-gray-600 text-sm">
+              Créez et éditez vos recettes avec un éditeur Markdown intégré
+            </p>
+          </Card>
+          
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+            <Users className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Collaboration</h3>
+            <p className="text-gray-600 text-sm">
+              Partagez vos plannings avec la famille et les amis
+            </p>
+          </Card>
+          
+          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
+            <ShoppingCart className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Liste de courses</h3>
+            <p className="text-gray-600 text-sm">
+              Génération automatique des listes consolidées
+            </p>
+          </Card>
+        </div>
+
+        {/* CTA Section */}
+        <div className="text-center bg-white rounded-2xl p-12 shadow-lg">
+          <h3 className="text-3xl font-bold text-gray-900 mb-4">
+            Prêt à simplifier votre organisation culinaire ?
+          </h3>
+          <p className="text-gray-600 mb-8">
+            Rejoignez des milliers de familles qui ont déjà adopté My Little Cook
+          </p>
+          <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
+            Créer mon premier planning
+          </Button>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Footer */}
+      <footer className="border-t bg-white mt-20">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-4 md:mb-0">
+              <ChefHat className="h-6 w-6 text-orange-600" />
+              <span className="font-semibold text-gray-900">My Little Cook</span>
+            </div>
+            <p className="text-gray-600 text-sm">
+              © 2024 My Little Cook. Tous droits réservés.
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );

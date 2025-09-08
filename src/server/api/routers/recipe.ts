@@ -1,0 +1,196 @@
+import { z } from "zod";
+import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+
+export const recipeRouter = createTRPCRouter({
+  getAll: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      cursor: z.string().nullish(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const recipes = await ctx.db.recipe.findMany({
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          ingredients: {
+            include: {
+              ingredient: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+
+      let nextCursor: typeof input.cursor | undefined = undefined;
+      if (recipes.length > input.limit) {
+        const nextItem = recipes.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        recipes,
+        nextCursor,
+      };
+    }),
+
+  getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.recipe.findUnique({
+        where: { id: input.id },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          ingredients: {
+            include: {
+              ingredient: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+    }),
+
+  create: publicProcedure
+    .input(z.object({
+      title: z.string().min(1),
+      description: z.string().optional(),
+      content: z.string().min(1),
+      imageUrl: z.string().url().optional(),
+      servings: z.number().positive().optional(),
+      prepTime: z.number().positive().optional(),
+      cookTime: z.number().positive().optional(),
+      authorId: z.string().optional(),
+      ingredients: z.array(z.object({
+        ingredientId: z.string(),
+        quantity: z.number().positive(),
+        notes: z.string().optional(),
+      })).optional(),
+      tags: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { ingredients, tags, ...recipeData } = input;
+      
+      return ctx.db.recipe.create({
+        data: {
+          ...recipeData,
+          ingredients: ingredients ? {
+            create: ingredients.map(ing => ({
+              quantity: ing.quantity,
+              notes: ing.notes,
+              ingredient: {
+                connect: { id: ing.ingredientId }
+              }
+            }))
+          } : undefined,
+          tags: tags ? {
+            create: tags.map(tagId => ({
+              tag: {
+                connect: { id: tagId }
+              }
+            }))
+          } : undefined,
+        },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          ingredients: {
+            include: {
+              ingredient: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+    }),
+
+  update: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      title: z.string().min(1).optional(),
+      description: z.string().optional(),
+      content: z.string().min(1).optional(),
+      imageUrl: z.string().url().optional(),
+      servings: z.number().positive().optional(),
+      prepTime: z.number().positive().optional(),
+      cookTime: z.number().positive().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updateData } = input;
+      
+      return ctx.db.recipe.update({
+        where: { id },
+        data: updateData,
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          ingredients: {
+            include: {
+              ingredient: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+    }),
+
+  delete: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.recipe.delete({
+        where: { id: input.id },
+      });
+    }),
+
+  search: publicProcedure
+    .input(z.object({
+      query: z.string().min(1),
+      limit: z.number().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.recipe.findMany({
+        where: {
+          OR: [
+            { title: { contains: input.query, mode: "insensitive" } },
+            { description: { contains: input.query, mode: "insensitive" } },
+            { content: { contains: input.query, mode: "insensitive" } },
+          ]
+        },
+        take: input.limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+    }),
+});
