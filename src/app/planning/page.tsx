@@ -215,16 +215,11 @@ export default function PlanningPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <Button 
-            className="bg-orange-600 hover:bg-orange-700"
-            onClick={() => {
-              // For now, just navigate to a shopping list page
-              // In a real app, this would generate and display the shopping list
-              window.open('/liste-de-courses', '_blank');
-            }}
-          >
-            Générer liste de courses
-          </Button>
+          <Link href="/liste-de-courses">
+            <Button className="bg-orange-600 hover:bg-orange-700">
+              Générer liste de courses
+            </Button>
+          </Link>
         </div>
 
         {/* Planning Grid */}

@@ -1,9 +1,14 @@
+'use client';
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar, ChefHat, ShoppingCart, Users } from "lucide-react";
 import Link from "next/link";
+import { useSession, signIn } from "next-auth/react";
 
 export default function Home() {
+  const { data: session, status } = useSession();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       {/* Hero Section */}
@@ -17,12 +22,21 @@ export default function Home() {
             et générez automatiquement vos listes de courses. Simplifiez votre quotidien culinaire.
           </p>
           <div className="space-x-4">
-            <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
-              Commencer gratuitement
-            </Button>
-            <Button size="lg" variant="outline">
-              Voir la démo
-            </Button>
+            {session?.user ? (
+              <Link href="/planning">
+                <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
+                  Accéder à mon planning
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                size="lg" 
+                className="bg-orange-600 hover:bg-orange-700"
+                onClick={() => signIn()}
+              >
+                Commencer avec Google
+              </Button>
+            )}
           </div>
         </div>
 
