@@ -52,13 +52,13 @@ export default function RecipesPage() {
             </p>
           </div>
           <div className="flex items-center space-x-3">
-            <Link href="/recettes/importer">
+            <Link href="/src/app/(authenticated)/recettes/importer">
               <Button variant="outline">
                 <Download className="h-4 w-4 mr-2" />
                 Importer depuis un lien
               </Button>
             </Link>
-            <Link href="/recettes/nouvelle">
+            <Link href="/src/app/(authenticated)/recettes/nouvelle">
               <Button className="bg-orange-600 hover:bg-orange-700">
                 <Plus className="h-4 w-4 mr-2" />
                 Nouvelle recette
@@ -164,13 +164,13 @@ export default function RecipesPage() {
 
                       {/* Actions */}
                       <div className="flex justify-between items-center">
-                        <Link href={`/recettes/${recipe.id}`}>
+                        <Link href={`/src/app/(authenticated)/recettes/${recipe.id}`}>
                           <Button variant="outline" size="sm">
                             Voir la recette
                           </Button>
                         </Link>
                         <div className="flex space-x-2">
-                          <Link href={`/recettes/${recipe.id}/modifier`}>
+                          <Link href={`/src/app/(authenticated)/recettes/${recipe.id}/modifier`}>
                             <Button variant="ghost" size="sm">
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -203,7 +203,7 @@ export default function RecipesPage() {
                   }
                 </p>
                 {!searchQuery && (
-                  <Link href="/recettes/nouvelle">
+                  <Link href="/src/app/(authenticated)/recettes/nouvelle">
                     <Button className="bg-orange-600 hover:bg-orange-700">
                       <Plus className="h-4 w-4 mr-2" />
                       Créer ma première recette

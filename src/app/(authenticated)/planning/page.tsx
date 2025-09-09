@@ -274,7 +274,7 @@ export default function PlanningPage() {
                         
                         {/* Action buttons */}
                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                          <Link href={`/recettes/${meal.recipe.id}`}>
+                          <Link href={`/src/app/(authenticated)/recettes/${meal.recipe.id}`}>
                             <Button
                               size="sm"
                               variant="outline"
@@ -374,7 +374,7 @@ export default function PlanningPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Link href={`/recettes/${recipe.id}`} target="_blank">
+                        <Link href={`/src/app/(authenticated)/recettes/${recipe.id}`} target="_blank">
                           <Button
                             size="sm"
                             variant="outline"
@@ -406,13 +406,13 @@ export default function PlanningPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t space-y-2">
-                <Link href="/recettes/nouvelle">
+                <Link href="/src/app/(authenticated)/recettes/nouvelle">
                   <Button variant="outline" className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     Créer une nouvelle recette
                   </Button>
                 </Link>
-                <Link href="/recettes/importer">
+                <Link href="/src/app/(authenticated)/recettes/importer">
                   <Button variant="outline" className="w-full">
                     <Download className="h-4 w-4 mr-2" />
                     Importer depuis un lien
