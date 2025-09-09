@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download } from "lucide-react";
+import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download, X, Eye, Trash2 } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
 
@@ -30,8 +30,12 @@ export default function PlanningPage() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{day: number, mealType: MealType} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewRecipe, setPreviewRecipe] = useState<{id: string, title: string, description?: string} | null>(null);
   
   const weekStart = getWeekStart(currentWeek);
+  
+  // Get tRPC context for cache invalidation
+  const utils = api.useContext();
   
   // tRPC queries
   const { data: mealPlan = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
@@ -47,13 +51,15 @@ export default function PlanningPage() {
   
   const { data: allRecipes } = api.recipe.getAll.useQuery({
     limit: 20,
+  }, {
+    enabled: !!selectedSlot
   });
   
   // Mutations
   const addMealMutation = api.mealPlan.addMealToSlot.useMutation({
     onSuccess: () => {
       // Invalidate and refetch
-      api.useContext().mealPlan.getWeekPlan.invalidate({
+      utils.mealPlan.getWeekPlan.invalidate({
         projectId: TEMP_PROJECT_ID,
         weekStart,
       });
@@ -62,7 +68,7 @@ export default function PlanningPage() {
   
   const removeMealMutation = api.mealPlan.removeMealFromSlot.useMutation({
     onSuccess: () => {
-      api.useContext().mealPlan.getWeekPlan.invalidate({
+      utils.mealPlan.getWeekPlan.invalidate({
         projectId: TEMP_PROJECT_ID,
         weekStart,
       });
@@ -112,13 +118,57 @@ export default function PlanningPage() {
   };
 
   const handleSlotClick = (day: number, mealType: MealType) => {
+    console.log('Slot clicked:', day, mealType);
     setSelectedSlot({ day, mealType });
   };
 
-  const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes ? allRecipes.recipes : []);
+  const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes || []);
 
   const addRecipeToSlot = async (recipe: { id: string; title: string }) => {
-    if (!selectedSlot) return;
+    if (!selectedSlot) {
+      console.log('No slot selected');
+      return;
+    }
+    
+    const mealTypeMap: Record<MealType, string> = {
+      'Petit-déjeuner': 'BREAKFAST',
+      'Déjeuner': 'LUNCH',  
+      'Dîner': 'DINNER'
+    };
+    
+    const mutationData = {
+      projectId: TEMP_PROJECT_ID,
+      weekStart,
+      dayOfWeek: selectedSlot.day,
+      mealType: mealTypeMap[selectedSlot.mealType] as any,
+      recipeId: recipe.id,
+    };
+    
+    console.log('Adding recipe to slot:', {
+      recipe: recipe.title,
+      slot: selectedSlot,
+      mutationData,
+      weekStartType: typeof weekStart,
+      weekStartValue: weekStart
+    });
+    
+    try {
+      const result = await addMealMutation.mutateAsync(mutationData);
+      
+      console.log('Recipe added successfully:', result);
+      setSelectedSlot(null);
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Error adding meal:', error);
+      console.error('Mutation data that failed:', mutationData);
+      alert('Erreur lors de l\'ajout de la recette au planning');
+    }
+  };
+
+  const removeMealFromSlot = async (day: number, mealType: MealType, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
     
     const mealTypeMap: Record<MealType, string> = {
       'Petit-déjeuner': 'BREAKFAST',
@@ -127,39 +177,19 @@ export default function PlanningPage() {
     };
     
     try {
-      await addMealMutation.mutateAsync({
+      await removeMealMutation.mutateAsync({
         projectId: TEMP_PROJECT_ID,
         weekStart,
-        dayOfWeek: selectedSlot.day,
-        mealType: mealTypeMap[selectedSlot.mealType] as any,
-        recipeId: recipe.id,
+        dayOfWeek: day,
+        mealType: mealTypeMap[mealType] as any,
       });
-      
-      setSelectedSlot(null);
-      setSearchQuery('');
     } catch (error) {
-      console.error('Error adding meal:', error);
+      console.error('Error removing meal:', error);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <ChefHat className="h-8 w-8 text-orange-600" />
-            <h1 className="text-2xl font-bold text-gray-900">My Little Cook</h1>
-          </div>
-          <nav className="hidden md:flex space-x-6">
-            <Button variant="ghost">Planning</Button>
-            <Button variant="ghost">Recettes</Button>
-            <Button variant="ghost">Liste de courses</Button>
-          </nav>
-          <Button>Mon compte</Button>
-        </div>
-      </header>
-
       <div className="container mx-auto px-4 py-8">
         {/* Week Navigation */}
         <div className="flex items-center justify-between mb-8">
@@ -218,23 +248,64 @@ export default function PlanningPage() {
                 return (
                   <Card 
                     key={`${dayIndex}-${mealType}`}
-                    className="min-h-24 p-3 cursor-pointer hover:shadow-md transition-shadow border-dashed border-gray-300"
-                    onClick={() => handleSlotClick(dayIndex, mealType)}
+                    className={`min-h-24 p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                      meal?.recipe 
+                        ? 'border-solid border-orange-200 bg-orange-50/50' 
+                        : 'border-dashed border-gray-300 hover:border-orange-300'
+                    }`}
+                    onClick={() => !meal?.recipe && handleSlotClick(dayIndex, mealType)}
                   >
                     {meal?.recipe ? (
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900 mb-1 line-clamp-2">
-                          {meal.recipe.title}
-                        </div>
-                        {meal.recipe.prepTime && (
-                          <div className="text-xs text-gray-500">
-                            {meal.recipe.prepTime} min
+                      <div className="relative group h-full">
+                        <div className="text-sm h-full flex flex-col justify-between">
+                          <div>
+                            <div className="font-medium text-gray-900 mb-1 line-clamp-2">
+                              {meal.recipe.title}
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500">
+                              {meal.recipe.prepTime && (
+                                <span className="bg-orange-100 px-2 py-1 rounded">
+                                  {meal.recipe.prepTime} min
+                                </span>
+                              )}
+                              {meal.recipe.servings && (
+                                <span className="bg-blue-100 px-2 py-1 rounded">
+                                  {meal.recipe.servings} pers.
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                          <Link href={`/recettes/${meal.recipe.id}`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 w-6 p-0 bg-white/90 hover:bg-white"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 w-6 p-0 bg-white/90 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                            onClick={(e) => removeMealFromSlot(dayIndex, mealType, e)}
+                            disabled={removeMealMutation.isPending}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center h-full text-gray-400">
-                        <Plus className="h-4 w-4" />
+                      <div className="flex items-center justify-center h-full text-gray-400 hover:text-orange-500 transition-colors">
+                        <div className="text-center">
+                          <Plus className="h-6 w-6 mx-auto mb-1" />
+                          <div className="text-xs">Ajouter</div>
+                        </div>
                       </div>
                     )}
                   </Card>
@@ -272,16 +343,17 @@ export default function PlanningPage() {
               </div>
 
               <div className="max-h-64 overflow-y-auto">
-                {recipesLoading ? (
-                  <div className="p-4 text-center text-gray-500">Recherche en cours...</div>
+                {(recipesLoading || (selectedSlot && !allRecipes && searchQuery.length === 0)) ? (
+                  <div className="p-4 text-center text-gray-500">
+                    <div className="animate-pulse">Chargement des recettes...</div>
+                  </div>
                 ) : displayedRecipes.length > 0 ? (
                   displayedRecipes.map((recipe) => (
                     <div
                       key={recipe.id}
-                      className="flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer rounded-md"
-                      onClick={() => addRecipeToSlot(recipe)}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-md"
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1">
                         <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center overflow-hidden">
                           {recipe.imageUrl ? (
                             <img 
@@ -301,18 +373,34 @@ export default function PlanningPage() {
                             </div>
                           )}
                           <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
-                            {recipe.prepTime && <span>{recipe.prepTime}min</span>}
-                            {recipe.servings && <span>{recipe.servings} pers.</span>}
+                            {recipe.prepTime && <span className="bg-orange-100 px-2 py-1 rounded">{recipe.prepTime}min</span>}
+                            {recipe.servings && <span className="bg-blue-100 px-2 py-1 rounded">{recipe.servings} pers.</span>}
                           </div>
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        disabled={addMealMutation.isPending}
-                        className="ml-2"
-                      >
-                        {addMealMutation.isPending ? 'Ajout...' : 'Ajouter'}
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Link href={`/recettes/${recipe.id}`} target="_blank">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Voir
+                          </Button>
+                        </Link>
+                        <Button 
+                          size="sm" 
+                          disabled={addMealMutation.isPending}
+                          className="bg-orange-600 hover:bg-orange-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addRecipeToSlot(recipe);
+                          }}
+                        >
+                          {addMealMutation.isPending ? 'Ajout...' : 'Ajouter'}
+                        </Button>
+                      </div>
                     </div>
                   ))
                 ) : (

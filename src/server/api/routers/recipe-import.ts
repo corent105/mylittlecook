@@ -50,8 +50,12 @@ export const recipeImportRouter = createTRPCRouter({
 
         // Process and create ingredients
         if (parsedIngredients && parsedIngredients.length > 0) {
+          // Prepare all ingredient data first
+          const ingredientCreations = [];
+          const recipeIngredientCreations = [];
+          
           for (const ingredientData of parsedIngredients) {
-            // Check if ingredient already exists, create if not
+            // Check if ingredient already exists
             let ingredient = await tx.ingredient.findFirst({
               where: {
                 name: {
@@ -62,6 +66,7 @@ export const recipeImportRouter = createTRPCRouter({
             });
 
             if (!ingredient) {
+              console.log(`Ingredient "${ingredientData.name}" not found, creating...`);
               ingredient = await tx.ingredient.create({
                 data: {
                   name: ingredientData.name,
@@ -69,16 +74,22 @@ export const recipeImportRouter = createTRPCRouter({
                   category: ingredientData.category,
                 }
               });
+              console.log(`Ingredient created with ID: ${ingredient.id}`);
             }
 
-            // Create the recipe-ingredient relationship
-            await tx.recipeIngredient.create({
-              data: {
-                recipeId: recipe.id,
-                ingredientId: ingredient.id,
-                quantity: ingredientData.quantity,
-                notes: ingredientData.notes,
-              }
+            // Prepare recipe-ingredient relationship data
+            recipeIngredientCreations.push({
+              recipeId: recipe.id,
+              ingredientId: ingredient.id,
+              quantity: ingredientData.quantity,
+              notes: ingredientData.notes,
+            });
+          }
+
+          // Create all recipe-ingredient relationships in batch
+          if (recipeIngredientCreations.length > 0) {
+            await tx.recipeIngredient.createMany({
+              data: recipeIngredientCreations
             });
           }
         }

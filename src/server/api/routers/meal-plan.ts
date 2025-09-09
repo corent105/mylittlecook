@@ -6,7 +6,7 @@ export const mealPlanRouter = createTRPCRouter({
   getWeekPlan: publicProcedure
     .input(z.object({
       projectId: z.string(),
-      weekStart: z.date(),
+      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
     }))
     .query(async ({ ctx, input }) => {
       return ctx.db.mealPlan.findMany({
@@ -38,7 +38,7 @@ export const mealPlanRouter = createTRPCRouter({
   addMealToSlot: publicProcedure
     .input(z.object({
       projectId: z.string(),
-      weekStart: z.date(),
+      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       dayOfWeek: z.number().min(0).max(6),
       mealType: z.nativeEnum(MealType),
       recipeId: z.string(),
@@ -83,7 +83,7 @@ export const mealPlanRouter = createTRPCRouter({
   removeMealFromSlot: publicProcedure
     .input(z.object({
       projectId: z.string(),
-      weekStart: z.date(),
+      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       dayOfWeek: z.number().min(0).max(6),
       mealType: z.nativeEnum(MealType),
     }))
@@ -101,7 +101,7 @@ export const mealPlanRouter = createTRPCRouter({
   generateShoppingList: publicProcedure
     .input(z.object({
       projectId: z.string(),
-      weekStart: z.date(),
+      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
     }))
     .query(async ({ ctx, input }) => {
       const mealPlans = await ctx.db.mealPlan.findMany({
@@ -163,8 +163,8 @@ export const mealPlanRouter = createTRPCRouter({
   duplicateWeek: publicProcedure
     .input(z.object({
       projectId: z.string(),
-      sourceWeekStart: z.date(),
-      targetWeekStart: z.date(),
+      sourceWeekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      targetWeekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
     }))
     .mutation(async ({ ctx, input }) => {
       const sourceMeals = await ctx.db.mealPlan.findMany({

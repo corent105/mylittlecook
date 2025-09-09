@@ -72,7 +72,7 @@ export const recipeRouter = createTRPCRouter({
       imageUrl: z.string().url().optional(),
       servings: z.number().positive().optional(),
       prepTime: z.number().positive().optional(),
-      cookTime: z.number().positive().optional(),
+      cookTime: z.number().optional(),
       authorId: z.string().optional(),
       ingredients: z.array(z.object({
         ingredientId: z.string(),

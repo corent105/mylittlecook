@@ -1,5 +1,6 @@
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import { type NextRequest } from 'next/server';
+import superjson from 'superjson';
 
 import { appRouter } from '@/server/api/root';
 import { createTRPCContext } from '@/server/api/trpc';
@@ -10,6 +11,7 @@ const handler = (req: NextRequest) =>
     req,
     router: appRouter,
     createContext: () => createTRPCContext({ req, res: undefined }),
+    transformer: superjson,
     onError:
       process.env.NODE_ENV === 'development'
         ? ({ path, error }) => {

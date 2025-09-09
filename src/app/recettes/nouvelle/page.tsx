@@ -98,29 +98,6 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <ChefHat className="h-8 w-8 text-orange-600" />
-            <h1 className="text-2xl font-bold text-gray-900">My Little Cook</h1>
-          </div>
-          <nav className="hidden md:flex space-x-6">
-            <Link href="/">
-              <Button variant="ghost">Accueil</Button>
-            </Link>
-            <Link href="/planning">
-              <Button variant="ghost">Planning</Button>
-            </Link>
-            <Link href="/recettes">
-              <Button variant="ghost">Recettes</Button>
-            </Link>
-            <Button variant="ghost">Liste de courses</Button>
-          </nav>
-          <Button>Mon compte</Button>
-        </div>
-      </header>
-
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">

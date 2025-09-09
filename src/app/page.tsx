@@ -1,27 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar, ChefHat, ShoppingCart, Users } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <ChefHat className="h-8 w-8 text-orange-600" />
-            <h1 className="text-2xl font-bold text-gray-900">My Little Cook</h1>
-          </div>
-          <nav className="hidden md:flex space-x-6">
-            <Button variant="ghost">Accueil</Button>
-            <Button variant="ghost">Planning</Button>
-            <Button variant="ghost">Recettes</Button>
-            <Button variant="ghost">Liste de courses</Button>
-          </nav>
-          <Button>Se connecter</Button>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-12">
         <div className="text-center mb-16">
