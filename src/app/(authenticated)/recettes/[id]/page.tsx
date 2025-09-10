@@ -8,11 +8,7 @@ import Link from "next/link";
 import ReactMarkdown from 'react-markdown';
 import {useParams} from "next/navigation";
 
-interface RecipePageProps {
-  params: {
-    id: string;
-  };
-}
+
 
 export default function RecipePage() {
   const params = useParams();
