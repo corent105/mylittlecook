@@ -21,6 +21,7 @@ export default function PlanningPage() {
   const [selectedSlot, setSelectedSlot] = useState<{day: number, mealType: MealType} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
+  const [popupSelectedMealUsers, setPopupSelectedMealUsers] = useState<string[]>([]);
   
   const weekStart = getWeekStart(currentWeek);
   
@@ -151,12 +152,14 @@ export default function PlanningPage() {
   const handleSlotClick = (day: number, mealType: MealType) => {
     console.log('Slot clicked:', day, mealType);
     setSelectedSlot({ day, mealType });
+    // Initialize popup meal users with current selection
+    setPopupSelectedMealUsers(selectedMealUsers);
   };
 
   const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes || []);
 
   const addRecipeToSlot = async (recipe: { id: string; title: string }) => {
-    if (!selectedSlot || selectedMealUsers.length === 0) {
+    if (!selectedSlot || popupSelectedMealUsers.length === 0) {
       console.log('No slot selected or no meal users selected');
       return;
     }
@@ -168,7 +171,7 @@ export default function PlanningPage() {
     };
     
     const mutationData = {
-      // Don't pass mealUserIds to use default from user settings
+      mealUserIds: popupSelectedMealUsers,
       weekStart,
       dayOfWeek: selectedSlot.day,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
@@ -189,6 +192,7 @@ export default function PlanningPage() {
       console.log('Recipe added successfully:', result);
       setSelectedSlot(null);
       setSearchQuery('');
+      setPopupSelectedMealUsers([]);
     } catch (error) {
       console.error('Error adding meal:', error);
       console.error('Mutation data that failed:', mutationData);
@@ -431,10 +435,41 @@ export default function PlanningPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedSlot(null)}
+                  onClick={() => {
+                    setSelectedSlot(null);
+                    setSearchQuery('');
+                    setPopupSelectedMealUsers([]);
+                  }}
                 >
                   ✕
                 </Button>
+              </div>
+
+              {/* Meal Users Selection */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-sm mb-2">Pour qui cette recette ?</h4>
+                <div className="flex flex-wrap gap-2">
+                  {mealUsers.map(mealUser => (
+                    <Button
+                      key={mealUser.id}
+                      size="sm"
+                      variant={popupSelectedMealUsers.includes(mealUser.id) ? "default" : "outline"}
+                      onClick={() => {
+                        setPopupSelectedMealUsers(prev => 
+                          prev.includes(mealUser.id)
+                            ? prev.filter(id => id !== mealUser.id)
+                            : [...prev, mealUser.id]
+                        );
+                      }}
+                      className={popupSelectedMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    >
+                      {mealUser.pseudo}
+                    </Button>
+                  ))}
+                </div>
+                {popupSelectedMealUsers.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">Veuillez sélectionner au moins une personne</p>
+                )}
               </div>
 
               <div className="relative mb-4">
@@ -491,8 +526,8 @@ export default function PlanningPage() {
                         </Link>
                         <Button 
                           size="sm" 
-                          disabled={addMealMutation.isPending}
-                          className="bg-orange-600 hover:bg-orange-700"
+                          disabled={addMealMutation.isPending || popupSelectedMealUsers.length === 0}
+                          className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
                           onClick={(e) => {
                             e.stopPropagation();
                             addRecipeToSlot(recipe);
