@@ -1,108 +1,127 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Calendar, ChefHat, ShoppingCart, Users } from "lucide-react";
+import { ChefHat } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
+import Image from "next/image";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   const { data: session, status } = useSession();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Hero Section */}
-      <main className="container mx-auto px-4 py-12">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold text-gray-900 mb-6">
-            Planifiez vos repas en famille
-          </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Créez des plannings de repas collaboratifs, gérez vos recettes en Markdown 
-            et générez automatiquement vos listes de courses. Simplifiez votre quotidien culinaire.
-          </p>
-          <div className="space-x-4">
-            {session?.user ? (
-              <Link href="/planning">
-                <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
-                  Accéder à mon planning
-                </Button>
-              </Link>
-            ) : (
-              <Button 
-                size="lg" 
-                className="bg-orange-600 hover:bg-orange-700"
-                onClick={() => signIn()}
-              >
-                Commencer avec Google
-              </Button>
-            )}
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+      {/* Navigation */}
+      <nav className="container mx-auto px-6 py-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <ChefHat className="h-8 w-8 text-slate-700" />
+            <span className="text-2xl font-bold text-slate-800">My Little Cook</span>
           </div>
+          {!session?.user && (
+            <Button 
+              variant="outline" 
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+              onClick={() => signIn()}
+            >
+              Se connecter
+            </Button>
+          )}
         </div>
+      </nav>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <Calendar className="h-12 w-12 text-orange-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Planning hebdomadaire</h3>
-            <p className="text-gray-600 text-sm">
-              Organisez vos repas sur une grille intuitive jour par jour
-            </p>
-          </Card>
-          
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <ChefHat className="h-12 w-12 text-orange-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Recettes Markdown</h3>
-            <p className="text-gray-600 text-sm">
-              Créez et éditez vos recettes avec un éditeur Markdown intégré
-            </p>
-          </Card>
-          
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <Users className="h-12 w-12 text-orange-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Collaboration</h3>
-            <p className="text-gray-600 text-sm">
-              Partagez vos plannings avec la famille et les amis
-            </p>
-          </Card>
-          
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <ShoppingCart className="h-12 w-12 text-orange-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Liste de courses</h3>
-            <p className="text-gray-600 text-sm">
-              Génération automatique des listes consolidées
-            </p>
-          </Card>
-        </div>
+      {/* Hero Section */}
+      <main className="container mx-auto px-6 py-12 flex-1">
+        <div className="grid lg:grid-cols-2 gap-16 items-center h-full">
+          {/* Content */}
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <h1 className="text-5xl lg:text-6xl font-bold text-slate-800 leading-tight">
+                Planifiez vos repas
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600">
+                  en toute simplicité
+                </span>
+              </h1>
+              <p className="text-xl text-slate-600 leading-relaxed max-w-lg">
+                Organisez vos menus hebdomadaires, gérez vos recettes et générez automatiquement vos listes de courses.
+              </p>
+            </div>
 
-        {/* CTA Section */}
-        <div className="text-center bg-white rounded-2xl p-12 shadow-lg">
-          <h3 className="text-3xl font-bold text-gray-900 mb-4">
-            Prêt à simplifier votre organisation culinaire ?
-          </h3>
-          <p className="text-gray-600 mb-8">
-            Rejoignez des milliers de familles qui ont déjà adopté My Little Cook
-          </p>
-          <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
-            Créer mon premier planning
-          </Button>
+            {/* Single CTA Button */}
+            <div className="pt-4">
+              {session?.user ? (
+                <Link href="/planning">
+                  <Button 
+                    size="lg" 
+                    className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-8 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    Accéder à mon planning
+                  </Button>
+                </Link>
+              ) : (
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white px-8 py-6 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  onClick={() => signIn()}
+                >
+                  Commencer maintenant
+                </Button>
+              )}
+            </div>
+
+            {/* Trust indicators */}
+            <div className="flex items-center space-x-6 text-sm text-slate-500 pt-8">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span>Gratuit</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>Facile à utiliser</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>Collaboratif</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Images */}
+          <div className="relative">
+            <div className="relative">
+              {/* Main image */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                <Image
+                  src="/img/landing/cooking-planning.png"
+                  alt="Interface de planning culinaire"
+                  width={600}
+                  height={400}
+                  className="w-full h-auto"
+                />
+              </div>
+              
+              {/* Floating secondary image */}
+              <div className="absolute -bottom-6 -right-6 w-48 h-32 rounded-xl overflow-hidden shadow-xl border-4 border-white">
+                <Image
+                  src="/img/landing/cooking-planning-focus.png"
+                  alt="Détail du planning"
+                  width={300}
+                  height={200}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
+            {/* Decorative elements */}
+            <div className="absolute -top-4 -left-4 w-20 h-20 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-full opacity-20 animate-pulse"></div>
+            <div className="absolute top-1/4 -right-8 w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-30 animate-pulse delay-1000"></div>
+          </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t bg-white mt-20">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <ChefHat className="h-6 w-6 text-orange-600" />
-              <span className="font-semibold text-gray-900">My Little Cook</span>
-            </div>
-            <p className="text-gray-600 text-sm">
-              © 2024 My Little Cook. Tous droits réservés.
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* Footer - now a separate component */}
+      <Footer />
     </div>
   );
 }

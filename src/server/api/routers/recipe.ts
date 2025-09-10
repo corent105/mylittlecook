@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
 
 export const recipeRouter = createTRPCRouter({
   getAll: publicProcedure
@@ -64,7 +64,7 @@ export const recipeRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({
       title: z.string().min(1),
       description: z.string().optional(),
@@ -73,7 +73,6 @@ export const recipeRouter = createTRPCRouter({
       servings: z.number().positive().optional(),
       prepTime: z.number().positive().optional(),
       cookTime: z.number().optional(),
-      authorId: z.string().optional(),
       ingredients: z.array(z.object({
         ingredientId: z.string(),
         quantity: z.number().positive(),
@@ -84,9 +83,15 @@ export const recipeRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { ingredients, tags, ...recipeData } = input;
       
+      // Automatically set the authorId to the authenticated user
+      const dataWithAuthor = {
+        ...recipeData,
+        authorId: ctx.session.user.id,
+      };
+      
       return ctx.db.recipe.create({
         data: {
-          ...recipeData,
+          ...dataWithAuthor,
           ingredients: ingredients ? {
             create: ingredients.map(ing => ({
               quantity: ing.quantity,
@@ -122,7 +127,7 @@ export const recipeRouter = createTRPCRouter({
       });
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(z.object({
       id: z.string(),
       title: z.string().min(1).optional(),
@@ -157,7 +162,7 @@ export const recipeRouter = createTRPCRouter({
       });
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.recipe.delete({
@@ -192,5 +197,87 @@ export const recipeRouter = createTRPCRouter({
           }
         }
       });
+    }),
+
+  getMyRecipes: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      cursor: z.string().nullish(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const recipes = await ctx.db.recipe.findMany({
+        where: { authorId: ctx.session.user.id },
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          ingredients: {
+            include: {
+              ingredient: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+
+      let nextCursor: typeof input.cursor | undefined = undefined;
+      if (recipes.length > input.limit) {
+        const nextItem = recipes.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        recipes,
+        nextCursor,
+      };
+    }),
+
+  getOthersRecipes: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(50),
+      cursor: z.string().nullish(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const recipes = await ctx.db.recipe.findMany({
+        where: { 
+          authorId: { not: ctx.session.user.id }
+        },
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          ingredients: {
+            include: {
+              ingredient: true
+            }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      });
+
+      let nextCursor: typeof input.cursor | undefined = undefined;
+      if (recipes.length > input.limit) {
+        const nextItem = recipes.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        recipes,
+        nextCursor,
+      };
     }),
 });

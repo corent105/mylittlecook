@@ -4,14 +4,22 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChefHat, Plus, Search, Edit, Trash2, Clock, Users, Download } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 export default function RecipesPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('my-recipes');
+  const { data: session } = useSession();
 
-  const { data: allRecipes, isLoading, refetch } = api.recipe.getAll.useQuery({
+  const { data: myRecipes, isLoading: isLoadingMyRecipes, refetch: refetchMyRecipes } = api.recipe.getMyRecipes.useQuery({
+    limit: 50,
+  });
+
+  const { data: othersRecipes, isLoading: isLoadingOthersRecipes, refetch: refetchOthersRecipes } = api.recipe.getOthersRecipes.useQuery({
     limit: 50,
   });
 
@@ -24,11 +32,22 @@ export default function RecipesPage() {
 
   const deleteRecipeMutation = api.recipe.delete.useMutation({
     onSuccess: () => {
-      refetch();
+      refetchMyRecipes();
+      refetchOthersRecipes();
     },
   });
 
-  const displayedRecipes = searchQuery.length > 0 ? searchResults : (allRecipes?.recipes || []);
+  const getDisplayedRecipes = () => {
+    if (searchQuery.length > 0) {
+      return searchResults;
+    }
+    if (activeTab === 'my-recipes') {
+      return myRecipes?.recipes || [];
+    }
+    return othersRecipes?.recipes || [];
+  };
+
+  const isLoading = isLoadingMyRecipes || isLoadingOthersRecipes;
 
   const handleDeleteRecipe = async (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette recette ?')) {
@@ -46,9 +65,9 @@ export default function RecipesPage() {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Mes Recettes</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Recettes</h2>
             <p className="text-gray-600">
-              Créez, gérez et organisez vos recettes favorites
+              Découvrez et gérez toutes vos recettes
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -68,7 +87,7 @@ export default function RecipesPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative mb-8">
+        <div className="relative mb-6">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Rechercher une recette..."
@@ -77,6 +96,20 @@ export default function RecipesPage() {
             className="pl-9 max-w-md"
           />
         </div>
+
+        {/* Tabs */}
+        {!searchQuery && (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="my-recipes">
+                Mes recettes ({myRecipes?.recipes.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="others-recipes">
+                Autres recettes ({othersRecipes?.recipes.length || 0})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
         {/* Loading State */}
         {isLoading && (
@@ -96,9 +129,9 @@ export default function RecipesPage() {
         {/* Recipes Grid */}
         {!isLoading && (
           <>
-            {displayedRecipes.length > 0 ? (
+            {getDisplayedRecipes().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedRecipes.map((recipe) => (
+                {getDisplayedRecipes().map((recipe) => (
                   <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                     {/* Recipe Image */}
                     <div className="h-48 bg-gray-200 relative overflow-hidden">
@@ -124,6 +157,13 @@ export default function RecipesPage() {
                       {recipe.description && (
                         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                           {recipe.description}
+                        </p>
+                      )}
+
+                      {/* Author info (only show for others' recipes) */}
+                      {session?.user?.id !== recipe.authorId && recipe.author && (
+                        <p className="text-gray-500 text-xs mb-2">
+                          Par {recipe.author.name || recipe.author.email}
                         </p>
                       )}
 
@@ -170,20 +210,25 @@ export default function RecipesPage() {
                           </Button>
                         </Link>
                         <div className="flex space-x-2">
-                          <Link href={`/recettes/${recipe.id}/modifier`}>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteRecipe(recipe.id)}
-                            disabled={deleteRecipeMutation.isPending}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {/* Show edit/delete buttons only for user's own recipes */}
+                          {session?.user?.id === recipe.authorId && (
+                            <>
+                              <Link href={`/recettes/${recipe.id}/modifier`}>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteRecipe(recipe.id)}
+                                disabled={deleteRecipeMutation.isPending}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

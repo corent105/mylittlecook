@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft } from "lucide-react";
+import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -13,6 +13,7 @@ export default function ShoppingListPage() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
+  const [showRecipes, setShowRecipes] = useState(false);
 
   const getWeekStart = (date: Date) => {
     const start = new Date(date);
@@ -39,6 +40,14 @@ export default function ShoppingListPage() {
   }, [mealUsers, selectedMealUsers.length]);
 
   const { data: shoppingList = [], isLoading } = api.mealPlan.generateShoppingList.useQuery({
+    mealUserIds: selectedMealUsers,
+    weekStart,
+  }, {
+    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+  });
+
+  // Get meal plans for the week to show recipes summary
+  const { data: weekMealPlans = [] } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: selectedMealUsers,
     weekStart,
   }, {
@@ -77,6 +86,28 @@ export default function ShoppingListPage() {
     acc[category].push(item);
     return acc;
   }, {} as Record<string, typeof shoppingList>);
+
+  // Group recipes by day and meal type
+  const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  const MEAL_TYPES = { BREAKFAST: 'Petit-déjeuner', LUNCH: 'Déjeuner', DINNER: 'Dîner' };
+
+  const groupedRecipes = weekMealPlans.reduce((acc, mealPlan) => {
+    if (!mealPlan.recipe) return acc;
+    
+    const dayName = DAYS[mealPlan.dayOfWeek];
+    const mealTypeName = MEAL_TYPES[mealPlan.mealType as keyof typeof MEAL_TYPES];
+    const key = `${dayName} - ${mealTypeName}`;
+    
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(mealPlan.recipe);
+    return acc;
+  }, {} as Record<string, Array<{ id: string; title: string }>>);
+
+  const uniqueRecipes = Array.from(
+    new Map(weekMealPlans.filter(mp => mp.recipe).map(mp => [mp.recipe!.id, mp.recipe!])).values()
+  );
 
   const exportToText = () => {
     const content = [
@@ -176,6 +207,50 @@ export default function ShoppingListPage() {
                   <div key={i} className="h-3 bg-gray-200 rounded"></div>
                 ))}
               </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Recipes Summary */}
+        {!isLoading && uniqueRecipes.length > 0 && (
+          <Card className="mb-8">
+            <div className="p-6">
+              <Button
+                variant="ghost"
+                className="w-full flex items-center justify-between p-0 h-auto text-left"
+                onClick={() => setShowRecipes(!showRecipes)}
+              >
+                <div className="flex items-center space-x-2">
+                  <ChefHat className="h-5 w-5 text-orange-600" />
+                  <span className="font-semibold text-gray-900">
+                    {uniqueRecipes.length} recette{uniqueRecipes.length > 1 ? 's' : ''} cette semaine
+                  </span>
+                </div>
+                {showRecipes ? (
+                  <ChevronUp className="h-5 w-5 text-gray-500" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-500" />
+                )}
+              </Button>
+              
+              {showRecipes && (
+                <div className="mt-6 space-y-4">
+                  {Object.entries(groupedRecipes).map(([timeSlot, recipes]) => (
+                    <div key={timeSlot} className="border-l-2 border-orange-200 pl-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">{timeSlot}</h4>
+                      <div className="space-y-2">
+                        {recipes.map((recipe) => (
+                          <Link key={`${timeSlot}-${recipe.id}`} href={`/recettes/${recipe.id}`}>
+                            <div className="text-sm text-gray-600 hover:text-orange-600 hover:underline cursor-pointer">
+                              • {recipe.title}
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         )}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
 import { RecipeExtractor } from "@/lib/recipe-extractor";
 
 export const recipeImportRouter = createTRPCRouter({
@@ -16,7 +16,7 @@ export const recipeImportRouter = createTRPCRouter({
       }
     }),
 
-  createFromExtracted: publicProcedure
+  createFromExtracted: protectedProcedure
     .input(z.object({
       title: z.string().min(1),
       description: z.string().optional(),
@@ -26,7 +26,6 @@ export const recipeImportRouter = createTRPCRouter({
       cookTime: z.number().positive().optional(),
       servings: z.number().positive().optional(),
       sourceUrl: z.string().url(),
-      authorId: z.string().optional(),
       parsedIngredients: z.array(z.object({
         quantity: z.number(),
         unit: z.string(),
@@ -43,6 +42,7 @@ export const recipeImportRouter = createTRPCRouter({
         const recipe = await tx.recipe.create({
           data: {
             ...recipeData,
+            authorId: ctx.session.user.id,
             // Store source URL in content as a comment
             content: `${recipeData.content}\n\n---\n*Recette importée depuis: [${sourceUrl}](${sourceUrl})*`,
           },

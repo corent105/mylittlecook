@@ -6,6 +6,7 @@ import { ChefHat, ArrowLeft, Edit, Clock, Users, Star } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
 import ReactMarkdown from 'react-markdown';
+import {useParams} from "next/navigation";
 
 interface RecipePageProps {
   params: {
@@ -13,8 +14,9 @@ interface RecipePageProps {
   };
 }
 
-export default function RecipePage({ params }: RecipePageProps) {
-  const recipeId = params.id;
+export default function RecipePage() {
+  const params = useParams();
+  const recipeId = params.id as string;
 
   const { data: recipe, isLoading, error } = api.recipe.getById.useQuery({
     id: recipeId,
