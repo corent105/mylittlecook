@@ -8,7 +8,8 @@
       "Bash(curl:*)",
       "Bash(find:*)",
       "Bash(sed:*)",
-      "Bash(npx prisma db push:*)"
+      "Bash(npx prisma db push:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

@@ -15,9 +15,11 @@ export const mealPlanRouter = createTRPCRouter({
       }
 
       // Create date range for the week to handle timestamp differences
+      // Ensure we use UTC dates to avoid timezone issues
       const weekStart = new Date(input.weekStart);
+      weekStart.setUTCHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
@@ -150,9 +152,11 @@ export const mealPlanRouter = createTRPCRouter({
       }
 
       // Create date range for the week to handle timestamp differences
+      // Ensure we use UTC dates to avoid timezone issues
       const weekStart = new Date(input.weekStart);
+      weekStart.setUTCHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
@@ -232,9 +236,11 @@ export const mealPlanRouter = createTRPCRouter({
       }
 
       // Create date range for the source week to handle timestamp differences
+      // Ensure we use UTC dates to avoid timezone issues
       const sourceWeekStart = new Date(input.sourceWeekStart);
+      sourceWeekStart.setUTCHours(0, 0, 0, 0);
       const sourceWeekEnd = new Date(sourceWeekStart);
-      sourceWeekEnd.setDate(sourceWeekEnd.getDate() + 7);
+      sourceWeekEnd.setUTCDate(sourceWeekEnd.getUTCDate() + 7);
 
       const sourceMeals = await ctx.db.mealPlan.findMany({
         where: {
@@ -260,9 +266,11 @@ export const mealPlanRouter = createTRPCRouter({
       }
 
       // Create date range for the target week to handle timestamp differences
+      // Ensure we use UTC dates to avoid timezone issues
       const targetWeekStart = new Date(input.targetWeekStart);
+      targetWeekStart.setUTCHours(0, 0, 0, 0);
       const targetWeekEnd = new Date(targetWeekStart);
-      targetWeekEnd.setDate(targetWeekEnd.getDate() + 7);
+      targetWeekEnd.setUTCDate(targetWeekEnd.getUTCDate() + 7);
 
       // Delete existing meals for target week for these users
       const existingTargetMeals = await ctx.db.mealPlan.findMany({
