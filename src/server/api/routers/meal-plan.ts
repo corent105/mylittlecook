@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
 import { MealType } from "@prisma/client";
 
 export const mealPlanRouter = createTRPCRouter({
@@ -62,15 +62,47 @@ export const mealPlanRouter = createTRPCRouter({
       return mealPlans;
     }),
 
-  addMealToSlot: publicProcedure
+  addMealToSlot: protectedProcedure
     .input(z.object({
-      mealUserIds: z.array(z.string()),
+      mealUserIds: z.array(z.string()).optional(),
       weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       dayOfWeek: z.number().min(0).max(6),
       mealType: z.nativeEnum(MealType),
       recipeId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      let mealUserIds = input.mealUserIds || [];
+
+      // If no meal users provided, use default group from user settings
+      if (mealUserIds.length === 0) {
+        const userSettings = await ctx.db.userSettings.findUnique({
+          where: { userId: ctx.session.user.id },
+        });
+
+        const defaultPeopleCount = userSettings?.defaultPeopleCount || 2;
+
+        // Get or create default meal users for this user
+        const existingMealUsers = await ctx.db.mealUser.findMany({
+          where: { userId: ctx.session.user.id },
+          take: defaultPeopleCount,
+        });
+
+        // Create additional meal users if needed
+        if (existingMealUsers.length < defaultPeopleCount) {
+          const toCreate = defaultPeopleCount - existingMealUsers.length;
+          for (let i = 0; i < toCreate; i++) {
+            const newMealUser = await ctx.db.mealUser.create({
+              data: {
+                pseudo: `Personne ${existingMealUsers.length + i + 1}`,
+                userId: ctx.session.user.id,
+              }
+            });
+            existingMealUsers.push(newMealUser);
+          }
+        }
+
+        mealUserIds = existingMealUsers.slice(0, defaultPeopleCount).map(mu => mu.id);
+      }
       // Create the meal plan
       const mealPlan = await ctx.db.mealPlan.create({
         data: {
@@ -97,7 +129,7 @@ export const mealPlanRouter = createTRPCRouter({
 
       // Create assignments to meal users
       await ctx.db.mealPlanAssignment.createMany({
-        data: input.mealUserIds.map(mealUserId => ({
+        data: mealUserIds.map(mealUserId => ({
           mealPlanId: mealPlan.id,
           mealUserId: mealUserId,
         }))
@@ -184,7 +216,8 @@ export const mealPlanRouter = createTRPCRouter({
                 }
               }
             }
-          }
+          },
+          mealUserAssignments: true
         }
       });
 
@@ -198,19 +231,29 @@ export const mealPlanRouter = createTRPCRouter({
       for (const mealPlan of mealPlans) {
         if (!mealPlan.recipe) continue;
         
+        // Calculate the number of people for this meal
+        const peopleCount = mealPlan.mealUserAssignments.length;
+        const recipeServings = mealPlan.recipe.servings || 1;
+        
+        // Calculate the multiplier: (people assigned / recipe servings)
+        const multiplier = peopleCount / recipeServings;
+        
         for (const recipeIngredient of mealPlan.recipe.ingredients) {
           const key = recipeIngredient.ingredient.id;
           const existing = ingredientMap.get(key);
           
+          // Adjust quantity based on the number of people
+          const adjustedQuantity = recipeIngredient.quantity * multiplier;
+          
           if (existing) {
-            existing.totalQuantity += recipeIngredient.quantity;
+            existing.totalQuantity += adjustedQuantity;
             if (recipeIngredient.notes) {
               existing.notes.push(recipeIngredient.notes);
             }
           } else {
             ingredientMap.set(key, {
               ingredient: recipeIngredient.ingredient,
-              totalQuantity: recipeIngredient.quantity,
+              totalQuantity: adjustedQuantity,
               notes: recipeIngredient.notes ? [recipeIngredient.notes] : [],
             });
           }
@@ -319,5 +362,86 @@ export const mealPlanRouter = createTRPCRouter({
       }
 
       return results;
+    }),
+
+  addMealUserToMeal: protectedProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+      mealUserId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if assignment already exists
+      const existingAssignment = await ctx.db.mealPlanAssignment.findUnique({
+        where: {
+          mealPlanId_mealUserId: {
+            mealPlanId: input.mealPlanId,
+            mealUserId: input.mealUserId,
+          }
+        }
+      });
+
+      if (existingAssignment) {
+        throw new Error("Cette personne est déjà assignée à ce repas");
+      }
+
+      return ctx.db.mealPlanAssignment.create({
+        data: {
+          mealPlanId: input.mealPlanId,
+          mealUserId: input.mealUserId,
+        },
+        include: {
+          mealUser: true,
+          mealPlan: {
+            include: {
+              recipe: true,
+            }
+          }
+        }
+      });
+    }),
+
+  removeMealUserFromMeal: protectedProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+      mealUserId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.mealPlanAssignment.delete({
+        where: {
+          mealPlanId_mealUserId: {
+            mealPlanId: input.mealPlanId,
+            mealUserId: input.mealUserId,
+          }
+        }
+      });
+    }),
+
+  getMealDetails: publicProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.mealPlan.findUnique({
+        where: { id: input.mealPlanId },
+        include: {
+          recipe: {
+            include: {
+              author: {
+                select: { id: true, name: true, email: true }
+              },
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          }
+        }
+      });
     }),
 });

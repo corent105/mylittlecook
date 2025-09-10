@@ -168,7 +168,7 @@ export default function PlanningPage() {
     };
     
     const mutationData = {
-      mealUserIds: selectedMealUsers,
+      // Don't pass mealUserIds to use default from user settings
       weekStart,
       dayOfWeek: selectedSlot.day,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
@@ -362,6 +362,11 @@ export default function PlanningPage() {
                                     {meal.recipe.servings}p.
                                   </span>
                                 )}
+                                {/* Display number of people assigned to this meal */}
+                                <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
+                                  <Users className="h-2.5 w-2.5 mr-0.5" />
+                                  {meal.mealUserAssignments?.length || 0}
+                                </span>
                               </div>
                             </div>
                             
@@ -467,11 +472,6 @@ export default function PlanningPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{recipe.title}</div>
-                          {recipe.description && (
-                            <div className="text-sm text-gray-500 truncate">
-                              {recipe.description}
-                            </div>
-                          )}
                           <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
                             {recipe.prepTime && <span className="bg-orange-100 px-2 py-1 rounded">{recipe.prepTime}min</span>}
                             {recipe.servings && <span className="bg-blue-100 px-2 py-1 rounded">{recipe.servings} pers.</span>}

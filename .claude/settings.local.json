@@ -9,7 +9,8 @@
       "Bash(find:*)",
       "Bash(sed:*)",
       "Bash(npx prisma db push:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx prisma migrate dev:*)"
     ],
     "deny": [],
     "ask": []
