@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChefHat, LogOut, User } from "lucide-react";
+import { ChefHat, LogOut, User, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 
@@ -81,6 +81,15 @@ export function Header() {
                     </div>
                   </div>
                   <hr />
+                  <Link href="/parametres">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Paramètres
+                    </Button>
+                  </Link>
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
