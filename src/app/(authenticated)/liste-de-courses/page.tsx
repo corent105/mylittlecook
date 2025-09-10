@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
-const TEMP_PROJECT_ID = 'temp-project-1';
-
 export default function ShoppingListPage() {
+  const { data: session } = useSession();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
 
   const getWeekStart = (date: Date) => {
     const start = new Date(date);
@@ -22,9 +23,26 @@ export default function ShoppingListPage() {
 
   const weekStart = getWeekStart(currentWeek);
 
+  // Get meal users for current user
+  const { data: mealUsers = [] } = api.mealUser.getByUserId.useQuery({
+    userId: session?.user?.id || ''
+  }, {
+    enabled: !!session?.user?.id
+  });
+
+  // Auto-select user's meal users when they are loaded
+  useEffect(() => {
+    if (mealUsers.length > 0 && selectedMealUsers.length === 0) {
+      const allIds = mealUsers.map(mu => mu.id);
+      setSelectedMealUsers(allIds);
+    }
+  }, [mealUsers, selectedMealUsers.length]);
+
   const { data: shoppingList = [], isLoading } = api.mealPlan.generateShoppingList.useQuery({
-    projectId: TEMP_PROJECT_ID,
+    mealUserIds: selectedMealUsers,
     weekStart,
+  }, {
+    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
   const formatWeekRange = (weekStart: Date) => {

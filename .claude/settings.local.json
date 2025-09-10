@@ -7,7 +7,8 @@
       "Bash(pnpm build:*)",
       "Bash(curl:*)",
       "Bash(find:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npx prisma db push:*)"
     ],
     "deny": [],
     "ask": []

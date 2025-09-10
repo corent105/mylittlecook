@@ -5,14 +5,33 @@ import { MealType } from "@prisma/client";
 export const mealPlanRouter = createTRPCRouter({
   getWeekPlan: publicProcedure
     .input(z.object({
-      projectId: z.string(),
+      mealUserIds: z.array(z.string()),
       weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
     }))
     .query(async ({ ctx, input }) => {
-      return ctx.db.mealPlan.findMany({
+      // If no meal users provided, return empty array
+      if (input.mealUserIds.length === 0) {
+        return [];
+      }
+
+      // Create date range for the week to handle timestamp differences
+      const weekStart = new Date(input.weekStart);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
+      const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
-          projectId: input.projectId,
-          week: input.weekStart,
+          week: {
+            gte: weekStart,
+            lt: weekEnd
+          },
+          mealUserAssignments: {
+            some: {
+              mealUserId: {
+                in: input.mealUserIds
+              }
+            }
+          }
         },
         include: {
           recipe: {
@@ -25,6 +44,11 @@ export const mealPlanRouter = createTRPCRouter({
                   ingredient: true
                 }
               }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
             }
           }
         },
@@ -33,31 +57,21 @@ export const mealPlanRouter = createTRPCRouter({
           { mealType: "asc" }
         ]
       });
+      return mealPlans;
     }),
 
   addMealToSlot: publicProcedure
     .input(z.object({
-      projectId: z.string(),
+      mealUserIds: z.array(z.string()),
       weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       dayOfWeek: z.number().min(0).max(6),
       mealType: z.nativeEnum(MealType),
       recipeId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.mealPlan.upsert({
-        where: {
-          projectId_week_dayOfWeek_mealType: {
-            projectId: input.projectId,
-            week: input.weekStart,
-            dayOfWeek: input.dayOfWeek,
-            mealType: input.mealType,
-          }
-        },
-        update: {
-          recipeId: input.recipeId,
-        },
-        create: {
-          projectId: input.projectId,
+      // Create the meal plan
+      const mealPlan = await ctx.db.mealPlan.create({
+        data: {
           week: input.weekStart,
           dayOfWeek: input.dayOfWeek,
           mealType: input.mealType,
@@ -78,36 +92,81 @@ export const mealPlanRouter = createTRPCRouter({
           }
         }
       });
+
+      // Create assignments to meal users
+      await ctx.db.mealPlanAssignment.createMany({
+        data: input.mealUserIds.map(mealUserId => ({
+          mealPlanId: mealPlan.id,
+          mealUserId: mealUserId,
+        }))
+      });
+
+      // Return meal plan with assignments
+      return ctx.db.mealPlan.findUnique({
+        where: { id: mealPlan.id },
+        include: {
+          recipe: {
+            include: {
+              author: {
+                select: { id: true, name: true, email: true }
+              },
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          }
+        }
+      });
     }),
 
   removeMealFromSlot: publicProcedure
     .input(z.object({
-      projectId: z.string(),
-      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
-      dayOfWeek: z.number().min(0).max(6),
-      mealType: z.nativeEnum(MealType),
+      mealPlanId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.mealPlan.deleteMany({
+      return ctx.db.mealPlan.delete({
         where: {
-          projectId: input.projectId,
-          week: input.weekStart,
-          dayOfWeek: input.dayOfWeek,
-          mealType: input.mealType,
+          id: input.mealPlanId,
         }
       });
     }),
 
   generateShoppingList: publicProcedure
     .input(z.object({
-      projectId: z.string(),
+      mealUserIds: z.array(z.string()),
       weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
     }))
     .query(async ({ ctx, input }) => {
+      // If no meal users provided, return empty array
+      if (input.mealUserIds.length === 0) {
+        return [];
+      }
+
+      // Create date range for the week to handle timestamp differences
+      const weekStart = new Date(input.weekStart);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
-          projectId: input.projectId,
-          week: input.weekStart,
+          week: {
+            gte: weekStart,
+            lt: weekEnd
+          },
+          mealUserAssignments: {
+            some: {
+              mealUserId: {
+                in: input.mealUserIds
+              }
+            }
+          },
           recipe: {
             isNot: null
           }
@@ -162,15 +221,37 @@ export const mealPlanRouter = createTRPCRouter({
 
   duplicateWeek: publicProcedure
     .input(z.object({
-      projectId: z.string(),
+      mealUserIds: z.array(z.string()),
       sourceWeekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       targetWeekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
     }))
     .mutation(async ({ ctx, input }) => {
+      // If no meal users provided, return empty array
+      if (input.mealUserIds.length === 0) {
+        return [];
+      }
+
+      // Create date range for the source week to handle timestamp differences
+      const sourceWeekStart = new Date(input.sourceWeekStart);
+      const sourceWeekEnd = new Date(sourceWeekStart);
+      sourceWeekEnd.setDate(sourceWeekEnd.getDate() + 7);
+
       const sourceMeals = await ctx.db.mealPlan.findMany({
         where: {
-          projectId: input.projectId,
-          week: input.sourceWeekStart,
+          week: {
+            gte: sourceWeekStart,
+            lt: sourceWeekEnd
+          },
+          mealUserAssignments: {
+            some: {
+              mealUserId: {
+                in: input.mealUserIds
+              }
+            }
+          }
+        },
+        include: {
+          mealUserAssignments: true
         }
       });
 
@@ -178,25 +259,57 @@ export const mealPlanRouter = createTRPCRouter({
         return [];
       }
 
-      // Delete existing meals for target week
-      await ctx.db.mealPlan.deleteMany({
+      // Create date range for the target week to handle timestamp differences
+      const targetWeekStart = new Date(input.targetWeekStart);
+      const targetWeekEnd = new Date(targetWeekStart);
+      targetWeekEnd.setDate(targetWeekEnd.getDate() + 7);
+
+      // Delete existing meals for target week for these users
+      const existingTargetMeals = await ctx.db.mealPlan.findMany({
         where: {
-          projectId: input.projectId,
-          week: input.targetWeekStart,
+          week: {
+            gte: targetWeekStart,
+            lt: targetWeekEnd
+          },
+          mealUserAssignments: {
+            some: {
+              mealUserId: {
+                in: input.mealUserIds
+              }
+            }
+          }
         }
       });
 
-      // Create new meals for target week
-      const newMeals = sourceMeals.map(meal => ({
-        projectId: input.projectId,
-        week: input.targetWeekStart,
-        dayOfWeek: meal.dayOfWeek,
-        mealType: meal.mealType,
-        recipeId: meal.recipeId,
-      }));
+      for (const meal of existingTargetMeals) {
+        await ctx.db.mealPlan.delete({
+          where: { id: meal.id }
+        });
+      }
 
-      return ctx.db.mealPlan.createMany({
-        data: newMeals,
-      });
+      // Create new meals for target week
+      const results = [];
+      for (const sourceMeal of sourceMeals) {
+        const newMeal = await ctx.db.mealPlan.create({
+          data: {
+            week: input.targetWeekStart,
+            dayOfWeek: sourceMeal.dayOfWeek,
+            mealType: sourceMeal.mealType,
+            recipeId: sourceMeal.recipeId,
+          }
+        });
+
+        // Create assignments for the same users
+        await ctx.db.mealPlanAssignment.createMany({
+          data: sourceMeal.mealUserAssignments.map(assignment => ({
+            mealPlanId: newMeal.id,
+            mealUserId: assignment.mealUserId,
+          }))
+        });
+
+        results.push(newMeal);
+      }
+
+      return results;
     }),
 });

@@ -25,10 +25,9 @@ model User {
   // Relations
   accounts      Account[]
   sessions      Session[]
-  ownedProjects Project[] @relation("ProjectOwner")
-  projectMemberships ProjectMember[]
   recipes       Recipe[]
   favorites     UserFavorite[]
+  mealUsers     MealUser[]
 
   @@map("users")
 }
@@ -72,34 +71,18 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-model Project {
+model MealUser {
   id        String   @id @default(cuid())
-  name      String
+  pseudo    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  ownerId   String
-  owner     User @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members   ProjectMember[]
-  mealPlans MealPlan[]
+  userId    String?
+  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  mealPlanAssignments MealPlanAssignment[]
 
-  @@map("projects")
-}
-
-model ProjectMember {
-  id        String   @id @default(cuid())
-  role      ProjectRole @default(CONTRIBUTOR)
-  joinedAt  DateTime @default(now())
-
-  // Relations
-  userId    String
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, projectId])
-  @@map("project_members")
+  @@map("meal_users")
 }
 
 model MealPlan {
@@ -111,12 +94,10 @@ model MealPlan {
   updatedAt DateTime @updatedAt
 
   // Relations
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   recipeId  String?
   recipe    Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  mealUserAssignments MealPlanAssignment[]
 
-  @@unique([projectId, week, dayOfWeek, mealType])
   @@map("meal_plans")
 }
 
@@ -208,9 +189,18 @@ model UserFavorite {
   @@map("user_favorites")
 }
 
-enum ProjectRole {
-  OWNER
-  CONTRIBUTOR
+model MealPlanAssignment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Relations
+  mealPlanId String
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  mealUserId String
+  mealUser   MealUser @relation(fields: [mealUserId], references: [id], onDelete: Cascade)
+
+  @@unique([mealPlanId, mealUserId])
+  @@map("meal_plan_assignments")
 }
 
 enum MealType {

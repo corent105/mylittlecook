@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download, X, Eye, Trash2 } from "lucide-react";
+import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download, X, Eye, Trash2, Users } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -13,35 +14,56 @@ const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
 
 type MealType = typeof MEAL_TYPES[number];
 
-interface MealSlot {
-  day: number;
-  mealType: MealType;
-  recipe?: {
-    id: string;
-    title: string;
-    imageUrl?: string;
-  };
-}
-
-// Temporary project ID - in real app this would come from auth/route params
-const TEMP_PROJECT_ID = 'temp-project-1';
 
 export default function PlanningPage() {
+  const { data: session } = useSession();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{day: number, mealType: MealType} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [previewRecipe, setPreviewRecipe] = useState<{id: string, title: string, description?: string} | null>(null);
+  const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   
   const weekStart = getWeekStart(currentWeek);
   
   // Get tRPC context for cache invalidation
   const utils = api.useContext();
   
-  // tRPC queries
-  const { data: mealPlan = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
-    projectId: TEMP_PROJECT_ID,
-    weekStart,
+  // Get meal users for current user
+  const { data: mealUsers = [] } = api.mealUser.getByUserId.useQuery({
+    userId: session?.user?.id || ''
+  }, {
+    enabled: !!session?.user?.id
   });
+
+  // Auto-select user's meal users when they are loaded
+  useEffect(() => {
+    if (mealUsers.length > 0 && selectedMealUsers.length === 0) {
+      const allIds = mealUsers.map(mu => mu.id);
+      setSelectedMealUsers(allIds);
+    }
+  }, [mealUsers, selectedMealUsers.length]);
+  
+  // tRPC queries - enable query once we have meal users or session
+  const { data: mealPlan = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
+    mealUserIds: selectedMealUsers,
+    weekStart,
+  }, {
+    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+  });
+
+
+  useEffect(() => {
+    if (mealPlan.length > 0) {
+      console.log('✅ Meal plan loaded:', mealPlan.length, 'items');
+      mealPlan.forEach(mp => {
+        console.log(`  - ${mp.recipe?.title || 'No recipe'} | Day: ${mp.dayOfWeek} | Type: ${mp.mealType}`);
+      });
+    } else if (selectedMealUsers.length > 0 && !mealPlanLoading) {
+      console.log('❌ No meal plans found for:', {
+        selectedMealUsers,
+        weekStart: weekStart.toISOString()
+      });
+    }
+  }, [mealPlan, selectedMealUsers, mealPlanLoading, weekStart]);
   
   const { data: recipes = [], isLoading: recipesLoading } = api.recipe.search.useQuery({
     query: searchQuery,
@@ -60,7 +82,7 @@ export default function PlanningPage() {
     onSuccess: () => {
       // Invalidate and refetch
       utils.mealPlan.getWeekPlan.invalidate({
-        projectId: TEMP_PROJECT_ID,
+        mealUserIds: selectedMealUsers,
         weekStart,
       });
     },
@@ -69,8 +91,16 @@ export default function PlanningPage() {
   const removeMealMutation = api.mealPlan.removeMealFromSlot.useMutation({
     onSuccess: () => {
       utils.mealPlan.getWeekPlan.invalidate({
-        projectId: TEMP_PROJECT_ID,
+        mealUserIds: selectedMealUsers,
         weekStart,
+      });
+    },
+  });
+
+  const createMealUserMutation = api.mealUser.create.useMutation({
+    onSuccess: () => {
+      utils.mealUser.getByUserId.invalidate({
+        userId: session?.user?.id || ''
       });
     },
   });
@@ -103,6 +133,7 @@ export default function PlanningPage() {
     setCurrentWeek(newWeek);
   };
 
+
   const getMealForSlot = (day: number, mealType: MealType) => {
     // Convert MealType to match database enum
     const mealTypeMap: Record<MealType, string> = {
@@ -125,8 +156,8 @@ export default function PlanningPage() {
   const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes || []);
 
   const addRecipeToSlot = async (recipe: { id: string; title: string }) => {
-    if (!selectedSlot) {
-      console.log('No slot selected');
+    if (!selectedSlot || selectedMealUsers.length === 0) {
+      console.log('No slot selected or no meal users selected');
       return;
     }
     
@@ -137,7 +168,7 @@ export default function PlanningPage() {
     };
     
     const mutationData = {
-      projectId: TEMP_PROJECT_ID,
+      mealUserIds: selectedMealUsers,
       weekStart,
       dayOfWeek: selectedSlot.day,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
@@ -165,23 +196,14 @@ export default function PlanningPage() {
     }
   };
 
-  const removeMealFromSlot = async (day: number, mealType: MealType, event?: React.MouseEvent) => {
+  const removeMealFromSlot = async (mealPlanId: string, event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
     }
     
-    const mealTypeMap: Record<MealType, string> = {
-      'Petit-déjeuner': 'BREAKFAST',
-      'Déjeuner': 'LUNCH',  
-      'Dîner': 'DINNER'
-    };
-    
     try {
       await removeMealMutation.mutateAsync({
-        projectId: TEMP_PROJECT_ID,
-        weekStart,
-        dayOfWeek: day,
-        mealType: mealTypeMap[mealType] as any,
+        mealPlanId,
       });
     } catch (error) {
       console.error('Error removing meal:', error);
@@ -191,6 +213,77 @@ export default function PlanningPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
+        {/* Meal Users Selection */}
+        {mealUsers.length === 0 ? (
+          <Card className="mb-8 p-6">
+            <div className="text-center">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Créez votre premier profil</h3>
+              <p className="text-gray-600 mb-4">
+                Créez un profil (pseudo) pour commencer à planifier vos repas
+              </p>
+              <Button
+                onClick={() => {
+                  const pseudo = prompt('Entrez votre pseudo:');
+                  if (pseudo) {
+                    createMealUserMutation.mutate({
+                      pseudo,
+                      userId: session?.user?.id
+                    });
+                  }
+                }}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Créer un profil
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="mb-8 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold mb-2">Mes profils :</h3>
+                <div className="flex gap-2">
+                  {mealUsers.map(mealUser => (
+                    <Button
+                      key={mealUser.id}
+                      size="sm"
+                      variant={selectedMealUsers.includes(mealUser.id) ? "default" : "outline"}
+                      onClick={() => {
+                        setSelectedMealUsers(prev => 
+                          prev.includes(mealUser.id)
+                            ? prev.filter(id => id !== mealUser.id)
+                            : [...prev, mealUser.id]
+                        );
+                      }}
+                      className={selectedMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    >
+                      {mealUser.pseudo}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const pseudo = prompt('Entrez votre pseudo:');
+                  if (pseudo) {
+                    createMealUserMutation.mutate({
+                      pseudo,
+                      userId: session?.user?.id
+                    });
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Week Navigation */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
@@ -274,7 +367,7 @@ export default function PlanningPage() {
                         
                         {/* Action buttons */}
                         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                          <Link href={`/src/app/(authenticated)/recettes/${meal.recipe.id}`}>
+                          <Link href={`/recettes/${meal.recipe.id}`}>
                             <Button
                               size="sm"
                               variant="outline"
@@ -288,7 +381,7 @@ export default function PlanningPage() {
                             size="sm"
                             variant="outline"
                             className="h-6 w-6 p-0 bg-white/90 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                            onClick={(e) => removeMealFromSlot(dayIndex, mealType, e)}
+                            onClick={(e) => removeMealFromSlot(meal.id, e)}
                             disabled={removeMealMutation.isPending}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -313,7 +406,7 @@ export default function PlanningPage() {
         {/* Recipe Search Modal */}
         {selectedSlot && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-2xl m-4 p-6">
+            <Card className="w-full max-w-6xl m-4 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">
                   Ajouter une recette - {DAYS[selectedSlot.day]} {selectedSlot.mealType}
@@ -374,7 +467,7 @@ export default function PlanningPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Link href={`/src/app/(authenticated)/recettes/${recipe.id}`} target="_blank">
+                        <Link href={`/recettes/${recipe.id}`} target="_blank">
                           <Button
                             size="sm"
                             variant="outline"
@@ -406,13 +499,13 @@ export default function PlanningPage() {
               </div>
 
               <div className="mt-4 pt-4 border-t space-y-2">
-                <Link href="/src/app/(authenticated)/recettes/nouvelle">
+                <Link href="/recettes/nouvelle">
                   <Button variant="outline" className="w-full">
                     <Plus className="h-4 w-4 mr-2" />
                     Créer une nouvelle recette
                   </Button>
                 </Link>
-                <Link href="/src/app/(authenticated)/recettes/importer">
+                <Link href="/recettes/importer">
                   <Button variant="outline" className="w-full">
                     <Download className="h-4 w-4 mr-2" />
                     Importer depuis un lien
