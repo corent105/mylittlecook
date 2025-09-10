@@ -134,7 +134,7 @@ export default function PlanningPage() {
   };
 
 
-  const getMealForSlot = (day: number, mealType: MealType) => {
+  const getMealsForSlot = (day: number, mealType: MealType) => {
     // Convert MealType to match database enum
     const mealTypeMap: Record<MealType, string> = {
       'Petit-déjeuner': 'BREAKFAST',
@@ -142,7 +142,7 @@ export default function PlanningPage() {
       'Dîner': 'DINNER'
     };
     
-    return mealPlan.find(m => 
+    return mealPlan.filter(m => 
       m.dayOfWeek === day && 
       m.mealType === mealTypeMap[mealType]
     );
@@ -332,60 +332,72 @@ export default function PlanningPage() {
                 {mealType}
               </div>
               {DAYS.map((_, dayIndex) => {
-                const meal = getMealForSlot(dayIndex, mealType);
+                const meals = getMealsForSlot(dayIndex, mealType);
                 return (
                   <Card 
                     key={`${dayIndex}-${mealType}`}
-                    className={`min-h-24 p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
-                      meal?.recipe 
+                    className={`min-h-32 p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                      meals.length > 0 
                         ? 'border-solid border-orange-200 bg-orange-50/50' 
                         : 'border-dashed border-gray-300 hover:border-orange-300'
                     }`}
-                    onClick={() => !meal?.recipe && handleSlotClick(dayIndex, mealType)}
+                    onClick={() => handleSlotClick(dayIndex, mealType)}
                   >
-                    {meal?.recipe ? (
-                      <div className="relative group h-full">
-                        <div className="text-sm h-full flex flex-col justify-between">
-                          <div>
-                            <div className="font-medium text-gray-900 mb-1 line-clamp-2">
-                              {meal.recipe.title}
+                    {meals.length > 0 ? (
+                      <div className="space-y-2 h-full">
+                        {meals.map((meal, mealIndex) => (
+                          <div key={meal.id} className="relative group">
+                            <div className="text-sm bg-white rounded border border-orange-100 p-2 shadow-sm">
+                              <div className="font-medium text-gray-900 mb-1 text-xs line-clamp-1">
+                                {meal.recipe?.title || 'Recette supprimée'}
+                              </div>
+                              <div className="flex items-center space-x-1 text-xs text-gray-500">
+                                {meal.recipe?.prepTime && (
+                                  <span className="bg-orange-100 px-1 py-0.5 rounded text-xs">
+                                    {meal.recipe.prepTime}min
+                                  </span>
+                                )}
+                                {meal.recipe?.servings && (
+                                  <span className="bg-blue-100 px-1 py-0.5 rounded text-xs">
+                                    {meal.recipe.servings}p.
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-2 text-xs text-gray-500">
-                              {meal.recipe.prepTime && (
-                                <span className="bg-orange-100 px-2 py-1 rounded">
-                                  {meal.recipe.prepTime} min
-                                </span>
+                            
+                            {/* Action buttons */}
+                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                              {meal.recipe && (
+                                <Link href={`/recettes/${meal.recipe.id}`}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-5 w-5 p-0 bg-white/90 hover:bg-white"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Eye className="h-2.5 w-2.5" />
+                                  </Button>
+                                </Link>
                               )}
-                              {meal.recipe.servings && (
-                                <span className="bg-blue-100 px-2 py-1 rounded">
-                                  {meal.recipe.servings} pers.
-                                </span>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-5 w-5 p-0 bg-white/90 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                                onClick={(e) => removeMealFromSlot(meal.id, e)}
+                                disabled={removeMealMutation.isPending}
+                              >
+                                <Trash2 className="h-2.5 w-2.5" />
+                              </Button>
                             </div>
                           </div>
-                        </div>
+                        ))}
                         
-                        {/* Action buttons */}
-                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                          <Link href={`/recettes/${meal.recipe.id}`}>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 w-6 p-0 bg-white/90 hover:bg-white"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          </Link>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 w-6 p-0 bg-white/90 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                            onClick={(e) => removeMealFromSlot(meal.id, e)}
-                            disabled={removeMealMutation.isPending}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                        {/* Add button */}
+                        <div className="flex items-center justify-center py-1 text-gray-400 hover:text-orange-500 transition-colors border-t border-dashed border-orange-200">
+                          <div className="text-center">
+                            <Plus className="h-4 w-4 mx-auto mb-0.5" />
+                            <div className="text-xs">Ajouter</div>
+                          </div>
                         </div>
                       </div>
                     ) : (

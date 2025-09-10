@@ -113,7 +113,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
               <p className="text-gray-600">Créez votre recette avec l'éditeur Markdown</p>
             </div>
           </div>
-          <Link href="/src/app/(authenticated)/recettes/importer">
+          <Link href="/recettes/importer">
             <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Importer depuis un lien

@@ -70,7 +70,7 @@ export default function RecipePage({ params }: RecipePageProps) {
               Retour aux recettes
             </Button>
           </Link>
-          <Link href={`/src/app/(authenticated)/recettes/${recipe.id}/modifier`}>
+          <Link href={`/recettes/${recipe.id}/modifier`}>
             <Button variant="outline">
               <Edit className="h-4 w-4 mr-2" />
               Modifier
