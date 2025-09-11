@@ -74,8 +74,9 @@ export const recipeRouter = createTRPCRouter({
       prepTime: z.number().positive().optional(),
       cookTime: z.number().optional(),
       ingredients: z.array(z.object({
-        ingredientId: z.string(),
+        name: z.string().min(1),
         quantity: z.number().positive(),
+        unit: z.string(),
         notes: z.string().optional(),
       })).optional(),
       tags: z.array(z.string()).optional(),
@@ -88,18 +89,42 @@ export const recipeRouter = createTRPCRouter({
         ...recipeData,
         authorId: ctx.session.user.id,
       };
+
+      // Process ingredients if provided
+      let processedIngredients = undefined;
+      if (ingredients && ingredients.length > 0) {
+        processedIngredients = await Promise.all(ingredients.map(async (ing) => {
+          // Find or create ingredient (only by name, since name is unique)
+          let ingredient = await ctx.db.ingredient.findFirst({
+            where: { 
+              name: { equals: ing.name, mode: "insensitive" }
+            }
+          });
+
+          if (!ingredient) {
+            ingredient = await ctx.db.ingredient.create({
+              data: {
+                name: ing.name,
+                unit: ing.unit, // Use the user's provided unit as default
+              }
+            });
+          }
+
+          return {
+            quantity: ing.quantity,
+            notes: ing.notes ? `${ing.notes} (${ing.unit})` : ing.unit, // Include user's unit in notes
+            ingredient: {
+              connect: { id: ingredient.id }
+            }
+          };
+        }));
+      }
       
       return ctx.db.recipe.create({
         data: {
           ...dataWithAuthor,
-          ingredients: ingredients ? {
-            create: ingredients.map(ing => ({
-              quantity: ing.quantity,
-              notes: ing.notes,
-              ingredient: {
-                connect: { id: ing.ingredientId }
-              }
-            }))
+          ingredients: processedIngredients ? {
+            create: processedIngredients
           } : undefined,
           tags: tags ? {
             create: tags.map(tagId => ({

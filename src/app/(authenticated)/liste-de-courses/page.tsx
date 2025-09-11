@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
-import { api } from "@/components/providers/trpc-provider";
+import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
@@ -25,9 +25,7 @@ export default function ShoppingListPage() {
   const weekStart = getWeekStart(currentWeek);
 
   // Get meal users for current user
-  const { data: mealUsers = [] } = api.mealUser.getByUserId.useQuery({
-    userId: session?.user?.id || ''
-  }, {
+  const { data: mealUsers = [] } = api.mealUser.getMyHouseholdProfiles.useQuery(undefined, {
     enabled: !!session?.user?.id
   });
 

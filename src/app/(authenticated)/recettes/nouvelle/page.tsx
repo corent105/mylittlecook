@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChefHat, Save, ArrowLeft, Download } from "lucide-react";
+import { ChefHat, Save, ArrowLeft, Download, Plus, Minus, X } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,14 @@ const MDEditor = dynamic(
   { ssr: false }
 );
 
+interface RecipeIngredient {
+  id: string;
+  name: string;
+  quantity: string;
+  unit: string;
+  notes: string;
+}
+
 interface RecipeForm {
   title: string;
   description: string;
@@ -24,6 +32,7 @@ interface RecipeForm {
   prepTime: string;
   cookTime: string;
   servings: string;
+  ingredients: RecipeIngredient[];
 }
 
 export default function NewRecipePage() {
@@ -32,12 +41,6 @@ export default function NewRecipePage() {
     title: '',
     description: '',
     content: `# Ma Nouvelle Recette
-
-## Ingrédients
-
-- [ ] Ingrédient 1 (quantité)
-- [ ] Ingrédient 2 (quantité)
-- [ ] Ingrédient 3 (quantité)
 
 ## Instructions
 
@@ -52,6 +55,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
     prepTime: '',
     cookTime: '',
     servings: '',
+    ingredients: [],
   });
 
   const createRecipeMutation = api.recipe.create.useMutation({
@@ -77,6 +81,16 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
       return;
     }
 
+    // Filter out empty ingredients and convert quantity to number
+    const validIngredients = form.ingredients
+      .filter(ing => ing.name.trim() && ing.quantity.trim() && ing.unit)
+      .map(ing => ({
+        name: ing.name.trim(),
+        quantity: parseFloat(ing.quantity),
+        unit: ing.unit,
+        notes: ing.notes.trim() || undefined,
+      }));
+
     try {
       await createRecipeMutation.mutateAsync({
         title: form.title,
@@ -86,14 +100,45 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
         prepTime: form.prepTime ? parseInt(form.prepTime) : undefined,
         cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
         servings: form.servings ? parseInt(form.servings) : undefined,
+        ingredients: validIngredients.length > 0 ? validIngredients : undefined,
       });
     } catch (error) {
       // Error handling is done in onError callback
     }
   };
 
-  const updateForm = (field: keyof RecipeForm, value: string) => {
+  const updateForm = (field: keyof RecipeForm, value: string | RecipeIngredient[]) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const addIngredient = () => {
+    const newIngredient: RecipeIngredient = {
+      id: crypto.randomUUID(),
+      name: '',
+      quantity: '',
+      unit: '',
+      notes: '',
+    };
+    setForm(prev => ({
+      ...prev,
+      ingredients: [...prev.ingredients, newIngredient]
+    }));
+  };
+
+  const updateIngredient = (id: string, field: keyof RecipeIngredient, value: string) => {
+    setForm(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.map(ing =>
+        ing.id === id ? { ...ing, [field]: value } : ing
+      )
+    }));
+  };
+
+  const removeIngredient = (id: string) => {
+    setForm(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.filter(ing => ing.id !== id)
+    }));
   };
 
   return (
@@ -163,6 +208,88 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
                       type="url"
                     />
                   </div>
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Ingrédients</h3>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={addIngredient}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ajouter
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {form.ingredients.length === 0 ? (
+                    <p className="text-gray-500 text-sm text-center py-4">
+                      Aucun ingrédient ajouté. Cliquez sur "Ajouter" pour commencer.
+                    </p>
+                  ) : (
+                    form.ingredients.map((ingredient) => (
+                      <div key={ingredient.id} className="grid grid-cols-12 gap-2 p-3 bg-gray-50 rounded-lg">
+                        <div className="col-span-5">
+                          <Input
+                            placeholder="Nom de l'ingrédient"
+                            value={ingredient.name}
+                            onChange={(e) => updateIngredient(ingredient.id, 'name', e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <Input
+                            placeholder="Qté"
+                            value={ingredient.quantity}
+                            onChange={(e) => updateIngredient(ingredient.id, 'quantity', e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <select
+                            value={ingredient.unit}
+                            onChange={(e) => updateIngredient(ingredient.id, 'unit', e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-input bg-background rounded-md"
+                          >
+                            <option value="">Unité</option>
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                            <option value="ml">ml</option>
+                            <option value="l">l</option>
+                            <option value="cl">cl</option>
+                            <option value="pièce">pièce</option>
+                            <option value="cuillère à soupe">c. à soupe</option>
+                            <option value="cuillère à café">c. à café</option>
+                            <option value="tasse">tasse</option>
+                            <option value="pincée">pincée</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <Input
+                            placeholder="Notes"
+                            value={ingredient.notes}
+                            onChange={(e) => updateIngredient(ingredient.id, 'notes', e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div className="col-span-1 flex justify-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeIngredient(ingredient.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </Card>
 

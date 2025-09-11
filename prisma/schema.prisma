@@ -21,6 +21,7 @@ model User {
   emailVerified DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  hasCompletedOnboarding Boolean @default(false)
 
   // Relations
   accounts      Account[]
@@ -28,6 +29,7 @@ model User {
   recipes       Recipe[]
   favorites     UserFavorite[]
   mealUsers     MealUser[]
+  householdProfiles MealUser[] @relation("HouseholdOwner")
   settings      UserSettings?
 
   @@map("users")
@@ -81,6 +83,8 @@ model MealUser {
   // Relations
   userId    String?
   user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ownerId   String   // Propriétaire du profil (qui a créé le foyer)
+  owner     User @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   mealPlanAssignments MealPlanAssignment[]
 
   @@map("meal_users")

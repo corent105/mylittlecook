@@ -95,6 +95,7 @@ export const mealPlanRouter = createTRPCRouter({
               data: {
                 pseudo: `Personne ${existingMealUsers.length + i + 1}`,
                 userId: ctx.session.user.id,
+                ownerId: ctx.session.user.id,
               }
             });
             existingMealUsers.push(newMealUser);

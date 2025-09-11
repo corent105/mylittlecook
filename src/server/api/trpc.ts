@@ -33,20 +33,20 @@ export const createTRPCContextForFetch = async () => {
     const dbSession = await db.session.findUnique({
       where: { sessionToken },
       include: { user: true }
-    });
-    
+      });
+      
     if (dbSession && dbSession.expires > new Date()) {
-      session = {
-        user: {
+        session = {
+          user: {
           id: dbSession.user.id,
           email: dbSession.user.email,
           name: dbSession.user.name,
           image: dbSession.user.image,
-        },
+          },
         expires: dbSession.expires.toISOString(),
-      };
+        };
+      }
     }
-  }
   
   return {
     db,

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download, X, Eye, Trash2, Users } from "lucide-react";
-import { api } from "@/components/providers/trpc-provider";
+import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
@@ -29,9 +29,7 @@ export default function PlanningPage() {
   const utils = api.useContext();
   
   // Get meal users for current user
-  const { data: mealUsers = [] } = api.mealUser.getByUserId.useQuery({
-    userId: session?.user?.id || ''
-  }, {
+  const { data: mealUsers = [] } = api.mealUser.getMyHouseholdProfiles.useQuery(undefined, {
     enabled: !!session?.user?.id
   });
 
@@ -100,9 +98,7 @@ export default function PlanningPage() {
 
   const createMealUserMutation = api.mealUser.create.useMutation({
     onSuccess: () => {
-      utils.mealUser.getByUserId.invalidate({
-        userId: session?.user?.id || ''
-      });
+      utils.mealUser.getMyHouseholdProfiles.invalidate();
     },
   });
 

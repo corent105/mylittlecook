@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
 import { Settings, Users, Save } from "lucide-react";
-import { api } from "@/components/providers/trpc-provider";
+import { api } from "@/trpc/react";
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,11 +15,7 @@ export default function SettingsPage() {
   const { data: userSettings, isLoading: settingsLoading } = api.userSettings.get.useQuery();
   
   // Get user's meal users
-  const { data: mealUsers = [] } = api.mealUser.getByUserId.useQuery({
-    userId: userSettings?.userId || ''
-  }, {
-    enabled: !!userSettings?.userId
-  });
+  const { data: mealUsers = [] } = api.mealUser.getMyHouseholdProfiles.useQuery();
 
   const updateSettingsMutation = api.userSettings.update.useMutation({
     onSuccess: () => {

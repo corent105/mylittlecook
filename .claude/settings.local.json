@@ -10,7 +10,11 @@
       "Bash(sed:*)",
       "Bash(npx prisma db push:*)",
       "Bash(node:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pkill:*)",
+      "Bash(PORT=3000 pnpm dev)",
+      "Bash(pnpm run:*)"
     ],
     "deny": [],
     "ask": []
