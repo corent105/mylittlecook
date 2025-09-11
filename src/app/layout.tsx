@@ -4,6 +4,7 @@ import "./globals.css";
 import { TRPCProvider } from "@/components/providers/trpc-provider";
 import { AuthProvider } from "@/components/providers/session-provider";
 import { Header } from "@/components/layout/header";
+import { PWAInstall } from "@/components/PWAInstall";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "My Little Cook",
   description: "Application de planification de repas collaborative",
+  manifest: "/manifest.json",
+  themeColor: "#ea580c",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "My Little Cook",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon-192x192.png",
+  },
 };
 
 export default function RootLayout({
@@ -34,6 +52,7 @@ export default function RootLayout({
           <TRPCProvider>
             <Header />
             {children}
+            <PWAInstall />
           </TRPCProvider>
         </AuthProvider>
       </body>

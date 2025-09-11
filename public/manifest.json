@@ -1,0 +1,27 @@
+{
+  "name": "My Little Cook",
+  "short_name": "My Little Cook",
+  "description": "Application collaborative de planification de repas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#ea580c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["food", "lifestyle", "utilities"],
+  "lang": "fr",
+  "dir": "ltr"
+}
