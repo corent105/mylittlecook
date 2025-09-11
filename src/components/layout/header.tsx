@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChefHat, LogOut, User, Settings } from "lucide-react";
+import { ChefHat, LogOut, User, Settings, Menu, Calendar, List, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 
@@ -26,7 +26,7 @@ export function Header() {
           <h1 className="text-2xl font-bold text-gray-900">My Little Cook</h1>
         </Link>
         
-        {/* Navigation - only shown to authenticated users */}
+        {/* Desktop Navigation */}
         {session?.user && (
           <nav className="hidden md:flex space-x-6">
             <Link href="/planning">
@@ -80,6 +80,32 @@ export function Header() {
                       </p>
                     </div>
                   </div>
+                  
+                  {/* Navigation mobile uniquement */}
+                  <div className="md:hidden">
+                    <hr />
+                    <div className="space-y-1 py-2">
+                      <Link href="/planning">
+                        <Button variant="ghost" className="w-full justify-start">
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Planning
+                        </Button>
+                      </Link>
+                      <Link href="/recettes">
+                        <Button variant="ghost" className="w-full justify-start">
+                          <ChefHat className="mr-2 h-4 w-4" />
+                          Recettes
+                        </Button>
+                      </Link>
+                      <Link href="/liste-de-courses">
+                        <Button variant="ghost" className="w-full justify-start">
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Liste de courses
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                  
                   <hr />
                   <Link href="/parametres">
                     <Button
