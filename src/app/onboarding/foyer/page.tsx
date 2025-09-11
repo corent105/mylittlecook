@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import {notFound, useRouter} from "next/navigation";
 import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,14 @@ interface HouseholdProfile {
 
 export default function HouseholdSetupPage() {
   const router = useRouter();
-  const { update } = useSession();
+  const { update, data } = useSession();
   const [profiles, setProfiles] = useState<HouseholdProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  if (!data?.user) {
+    // If the user is not authenticated, return the 404 page as requested
+    notFound();
+  }
 
   const [hasInitialized, setHasInitialized] = useState(false);
 
@@ -38,6 +42,7 @@ export default function HouseholdSetupPage() {
 
   const createProfile = api.mealUser.create.useMutation();
   const updateProfile = api.mealUser.update.useMutation();
+  const completeOnboarding = api.userSettings.completeOnboarding.useMutation();
 
   const handleInitialSetup = async () => {
     if (hasInitialized) return;
@@ -91,6 +96,9 @@ export default function HouseholdSetupPage() {
         }
       }
 
+      // Marquer l'onboarding comme terminé en base de données
+      await completeOnboarding.mutateAsync();
+      
       // Mettre à jour la session pour refléter que l'onboarding est terminé
       await update({ hasCompletedOnboarding: true });
       

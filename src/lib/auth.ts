@@ -15,12 +15,19 @@ export const authOptions: NextAuthOptions = {
     session: async ({ session, user }) => {
       if (session?.user) {
         session.user.id = user.id;
+        // Récupérer les informations complètes de l'utilisateur depuis la base de données
+        const dbUser = await db.user.findUnique({
+          where: { id: user.id },
+          select: { hasCompletedOnboarding: true }
+        });
+        session.user.hasCompletedOnboarding = dbUser?.hasCompletedOnboarding ?? false;
       }
       return session;
     },
     jwt: async ({ user, token }) => {
       if (user) {
         token.uid = user.id;
+        token.hasCompletedOnboarding = user.hasCompletedOnboarding;
       }
       return token;
     },
