@@ -1,0 +1,205 @@
+'use client';
+
+import { useMemo } from 'react';
+import { Card } from "@/components/ui/card";
+import { ChefHat, Calendar, Users, Edit } from "lucide-react";
+import { api } from "@/trpc/react";
+import { useSession } from "next-auth/react";
+
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+interface NextMealsProps {
+  onMealClick?: (meal: any) => void;
+  selectedMealUsers: string[];
+}
+
+export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsProps) {
+  const { data: session } = useSession();
+
+  // Memoize week calculations to prevent recalculations
+  const weekStarts = useMemo(() => {
+    const getCurrentWeekStart = (date: Date = new Date()) => {
+      const start = new Date(date);
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start.setDate(diff);
+      start.setHours(0, 0, 0, 0); // Reset time to avoid date comparison issues
+      return start;
+    };
+
+    const currentWeekStart = getCurrentWeekStart();
+    const nextWeekStart = new Date(currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    return { currentWeekStart, nextWeekStart };
+  }, []); // Empty dependency array - only calculate once
+
+  // Get meal plans for current and next week
+  const { data: currentWeekMealPlan = [] } = api.mealPlan.getWeekPlan.useQuery({
+    mealUserIds: selectedMealUsers,
+    weekStart: weekStarts.currentWeekStart,
+  }, {
+    enabled: !!session?.user?.id && selectedMealUsers.length > 0,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  const { data: nextWeekMealPlan = [] } = api.mealPlan.getWeekPlan.useQuery({
+    mealUserIds: selectedMealUsers,
+    weekStart: weekStarts.nextWeekStart,
+  }, {
+    enabled: !!session?.user?.id && selectedMealUsers.length > 0,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  // Memoize next meals calculation to prevent infinite re-renders
+  const nextMeals = useMemo(() => {
+    if (!currentWeekMealPlan || !nextWeekMealPlan || selectedMealUsers.length === 0) {
+      return [];
+    }
+
+    const now = new Date();
+    const currentDateTime = now.getTime();
+
+    const mealTimes = {
+      'BREAKFAST': { hour: 9, label: 'Petit-déjeuner' },
+      'LUNCH': { hour: 14, label: 'Déjeuner' },
+      'DINNER': { hour: 20, label: 'Dîner' }
+    };
+
+    const mealOrder = ['BREAKFAST', 'LUNCH', 'DINNER'];
+    const allMeals: any[] = [];
+
+    // Helper function to process meals for a week
+    const processMealsForWeek = (mealPlan: any[], weekStart: Date) => {
+      for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+        for (const mealType of mealOrder) {
+          const dayDate = new Date(weekStart);
+          dayDate.setDate(weekStart.getDate() + dayOfWeek);
+
+          const mealDateTime = new Date(dayDate);
+          mealDateTime.setHours(mealTimes[mealType as keyof typeof mealTimes].hour, 0, 0, 0);
+
+          // Only include future meals
+          if (mealDateTime.getTime() > currentDateTime) {
+            const mealsForSlot = mealPlan.filter(m =>
+              m.dayOfWeek === dayOfWeek && m.mealType === mealType
+            );
+
+            mealsForSlot.forEach(meal => {
+              allMeals.push({
+                ...meal,
+                dayName: DAYS[dayOfWeek],
+                mealTypeLabel: mealTimes[mealType as keyof typeof mealTimes].label,
+                date: new Date(dayDate), // Create new Date instance
+                mealDateTime: mealDateTime.getTime()
+              });
+            });
+          }
+        }
+      }
+    };
+
+    // Process current week
+    processMealsForWeek(currentWeekMealPlan, weekStarts.currentWeekStart);
+
+    // Process next week
+    processMealsForWeek(nextWeekMealPlan, weekStarts.nextWeekStart);
+
+    // Sort by datetime and take first 6
+    return allMeals
+      .sort((a, b) => a.mealDateTime - b.mealDateTime)
+      .slice(0, 6)
+      .map((meal, index) => ({
+        ...meal,
+        isNext: index === 0
+      }));
+  }, [currentWeekMealPlan, nextWeekMealPlan, selectedMealUsers, weekStarts]);
+
+  if (nextMeals.length === 0 || selectedMealUsers.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="mb-6 sm:mb-8 p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
+          <Calendar className="h-5 w-5 mr-2 text-orange-500" />
+          Prochains repas
+        </h3>
+        {nextMeals[0]?.isNext && (
+          <span className="text-xs sm:text-sm text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
+            Prochain repas
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {nextMeals.map((meal, index) => (
+          <div
+            key={meal.id}
+            className={`relative group cursor-pointer transition-all duration-200 ${
+              index === 0 ? 'ring-2 ring-orange-200 bg-orange-50' : 'hover:shadow-md'
+            } rounded-lg border border-gray-200 p-3`}
+            onClick={() => onMealClick?.(meal)}
+          >
+            <div className="flex items-start space-x-3">
+              <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                {meal.recipe?.imageUrl ? (
+                  <img
+                    src={meal.recipe.imageUrl}
+                    alt={meal.recipe.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ChefHat className="h-6 w-6 text-gray-400" />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-gray-500">
+                    {meal.date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' })} • {meal.mealTypeLabel}
+                  </p>
+                  {index === 0 && (
+                    <span className="text-xs text-orange-600 font-medium">
+                      À venir
+                    </span>
+                  )}
+                </div>
+
+                <h4 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-2">
+                  {meal.recipe?.title || 'Recette supprimée'}
+                </h4>
+
+                <div className="flex items-center space-x-1 text-xs">
+                  {meal.recipe?.prepTime && (
+                    <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                      {meal.recipe.prepTime}min
+                    </span>
+                  )}
+                  {meal.recipe?.servings && (
+                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                      {meal.recipe.servings}p.
+                    </span>
+                  )}
+                  <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center">
+                    <Users className="h-2.5 w-2.5 mr-0.5" />
+                    {meal.mealUserAssignments?.length || 0}
+                  </span>
+                  {meal.cookResponsible && (
+                    <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded flex items-center">
+                      👨‍🍳 {meal.cookResponsible.pseudo}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Edit className="h-3 w-3 text-gray-400" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
