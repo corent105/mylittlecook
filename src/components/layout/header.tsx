@@ -6,18 +6,36 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ChefHat, LogOut, User, Settings, Menu, Calendar, List, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 
 export function Header() {
-  const { data: session, status } = useSession();
+  const [isHomePage, setIsHomePage] = useState(false);
 
+
+  const { data: session, status } = useSession();
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  
+
+
+  const handleLinkClick = () => {
+    setIsPopoverOpen(false);
+  };
+  useEffect(() => {
+    setIsHomePage(window.location.pathname === '/');
+  }, []);
+
+  // Ne pas afficher le header sur la page d'accueil
+  if (isHomePage) {
+    return null;
+  }
   const userInitials = session?.user?.name
     ? session.user.name.split(' ')
-        .map(word => word[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
+      .map(word => word[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase()
     : 'U';
-
   return (
     <header className="border-b bg-white">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -45,7 +63,7 @@ export function Header() {
           {status === "loading" ? (
             <div className="w-8 h-8 animate-spin rounded-full border-2 border-orange-600 border-t-transparent"></div>
           ) : session?.user ? (
-            <Popover>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
                   <Avatar className="h-10 w-10">
@@ -85,19 +103,19 @@ export function Header() {
                   <div className="md:hidden">
                     <hr />
                     <div className="space-y-1 py-2">
-                      <Link href="/planning">
+                      <Link href="/planning" onClick={handleLinkClick}>
                         <Button variant="ghost" className="w-full justify-start">
                           <Calendar className="mr-2 h-4 w-4" />
                           Planning
                         </Button>
                       </Link>
-                      <Link href="/recettes">
+                      <Link href="/recettes" onClick={handleLinkClick}>
                         <Button variant="ghost" className="w-full justify-start">
                           <ChefHat className="mr-2 h-4 w-4" />
                           Recettes
                         </Button>
                       </Link>
-                      <Link href="/liste-de-courses">
+                      <Link href="/liste-de-courses" onClick={handleLinkClick}>
                         <Button variant="ghost" className="w-full justify-start">
                           <ShoppingCart className="mr-2 h-4 w-4" />
                           Liste de courses
@@ -107,7 +125,7 @@ export function Header() {
                   </div>
                   
                   <hr />
-                  <Link href="/parametres">
+                  <Link href="/parametres" onClick={handleLinkClick}>
                     <Button
                       variant="ghost"
                       className="w-full justify-start"
@@ -119,7 +137,10 @@ export function Header() {
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => {
+                      handleLinkClick();
+                      signOut({ callbackUrl: "/" });
+                    }}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Se déconnecter

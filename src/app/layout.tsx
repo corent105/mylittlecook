@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TRPCProvider } from "@/components/providers/trpc-provider";
@@ -19,23 +19,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "My Little Cook",
   description: "Application de planification de repas collaborative",
-  manifest: "/manifest.json",
-  themeColor: "#ea580c",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "My Little Cook",
-  },
-  icons: {
-    icon: "/icon.svg",
-    apple: "/icon-192x192.png",
-  },
 };
 
 export default function RootLayout({

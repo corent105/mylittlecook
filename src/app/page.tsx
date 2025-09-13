@@ -15,19 +15,30 @@ export default function Home() {
       {/* Navigation */}
       <nav className="container mx-auto px-6 py-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <ChefHat className="h-8 w-8 text-slate-700" />
+          <Link href="/" className="flex items-center space-x-2">
+            <ChefHat className="h-8 w-8 text-orange-600" />
             <span className="text-2xl font-bold text-slate-800">My Little Cook</span>
+          </Link>
+          <div className="flex items-center space-x-4">
+            {session?.user ? (
+              <Link href="/planning">
+                <Button 
+                  variant="outline" 
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                >
+                  Mon planning
+                </Button>
+              </Link>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                onClick={() => signIn()}
+              >
+                Se connecter
+              </Button>
+            )}
           </div>
-          {!session?.user && (
-            <Button 
-              variant="outline" 
-              className="border-slate-300 text-slate-700 hover:bg-slate-50"
-              onClick={() => signIn()}
-            >
-              Se connecter
-            </Button>
-          )}
         </div>
       </nav>
 
