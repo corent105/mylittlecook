@@ -1,0 +1,176 @@
+'use client';
+
+import { Card } from "@/components/ui/card";
+import { ChefHat, Plus, Users, Edit } from "lucide-react";
+
+const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
+
+type MealType = typeof MEAL_TYPES[number];
+
+interface PlanningGridProps {
+  mealPlan: any[];
+  onSlotClick: (day: number, mealType: MealType) => void;
+  onMealCardClick: (meal: any, event: React.MouseEvent) => void;
+}
+
+export default function PlanningGrid({
+  mealPlan,
+  onSlotClick,
+  onMealCardClick
+}: PlanningGridProps) {
+  const getMealsForSlot = (day: number, mealType: MealType) => {
+    const mealTypeMap: Record<MealType, string> = {
+      'Petit-déjeuner': 'BREAKFAST',
+      'Déjeuner': 'LUNCH',
+      'Dîner': 'DINNER'
+    };
+
+    return mealPlan.filter(m =>
+      m.dayOfWeek === day &&
+      m.mealType === mealTypeMap[mealType]
+    );
+  };
+
+  const renderMealCard = (meal: any, isMobile = false) => (
+    <div
+      key={meal.id}
+      className="relative group cursor-pointer hover:bg-orange-25 rounded transition-colors"
+      onClick={(e) => onMealCardClick(meal, e)}
+    >
+      <div className={`text-sm bg-white rounded border border-orange-100 ${isMobile ? 'p-1.5' : 'p-2'} shadow-sm hover:shadow-md transition-shadow`}>
+        <div className={`font-medium text-gray-900 mb-1 text-xs ${isMobile ? 'line-clamp-2' : 'line-clamp-1'}`}>
+          {meal.recipe?.title || 'Recette supprimée'}
+        </div>
+        <div className={`flex items-center space-x-1 text-xs text-gray-500 ${isMobile ? 'flex-wrap gap-1' : ''}`}>
+          {meal.recipe?.prepTime && (
+            <span className="bg-orange-100 px-1 py-0.5 rounded text-xs">
+              {meal.recipe.prepTime}min
+            </span>
+          )}
+          {meal.recipe?.servings && (
+            <span className="bg-blue-100 px-1 py-0.5 rounded text-xs">
+              {meal.recipe.servings}p.
+            </span>
+          )}
+          <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
+            <Users className={`${isMobile ? 'h-2 w-2' : 'h-2.5 w-2.5'} mr-0.5`} />
+            {meal.mealUserAssignments?.length || 0}
+          </span>
+          {meal.cookResponsible && (
+            <span className="bg-yellow-100 px-1 py-0.5 rounded text-xs flex items-center">
+              👨‍🍳 {meal.cookResponsible.pseudo}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className={`absolute ${isMobile ? 'top-1 right-1' : 'top-1 right-1'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+        <Edit className={`${isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} text-gray-400`} />
+      </div>
+    </div>
+  );
+
+  const renderSlotContent = (meals: any[], dayIndex: number, mealType: MealType, isMobile = false) => {
+    if (meals.length > 0) {
+      return (
+        <div className={`space-y-${isMobile ? '1.5' : '2'} h-full`}>
+          {meals.map((meal) => renderMealCard(meal, isMobile))}
+
+          <div className={`flex items-center justify-center py-1 text-gray-400 hover:text-orange-500 transition-colors border-t border-dashed border-orange-200`}>
+            <div className="text-center">
+              <Plus className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} mx-auto mb-0.5`} />
+              <div className="text-xs">Ajouter</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 hover:text-orange-500 transition-colors">
+        <div className="text-center">
+          <Plus className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} mx-auto mb-1`} />
+          <div className="text-xs">Ajouter</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="md:grid md:grid-cols-8 md:gap-4 mb-8">
+      {/* Desktop Grid */}
+      <div className="hidden md:contents">
+        {/* Header Row */}
+        <div className="font-medium text-gray-700"></div>
+        {DAYS.map((day, index) => (
+          <div key={day} className="text-center font-medium text-gray-700 py-2">
+            {day}
+          </div>
+        ))}
+
+        {/* Meal Rows */}
+        {MEAL_TYPES.map((mealType) => (
+          <div key={mealType} className="contents">
+            <div className="flex items-center font-medium text-gray-700 py-4">
+              {mealType}
+            </div>
+            {DAYS.map((_, dayIndex) => {
+              const meals = getMealsForSlot(dayIndex, mealType);
+              return (
+                <Card
+                  key={`${dayIndex}-${mealType}`}
+                  className={`min-h-32 p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                    meals.length > 0
+                      ? 'border-solid border-orange-200 bg-orange-50/50'
+                      : 'border-dashed border-gray-300 hover:border-orange-300'
+                  }`}
+                  onClick={() => onSlotClick(dayIndex, mealType)}
+                >
+                  {renderSlotContent(meals, dayIndex, mealType, false)}
+                </Card>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile Scroll Layout */}
+      <div className="md:hidden">
+        <div className="overflow-x-auto">
+          <div className="flex gap-4 px-4 pb-4" style={{ width: 'max-content' }}>
+            {DAYS.map((day, dayIndex) => (
+              <div key={dayIndex} className="flex-shrink-0">
+                <div className="text-center text-sm font-medium text-gray-700 mb-3 w-48">
+                  {day}
+                </div>
+                <div className="space-y-3 w-48">
+                  {MEAL_TYPES.map((mealType) => {
+                    const meals = getMealsForSlot(dayIndex, mealType);
+                    return (
+                      <div key={`${dayIndex}-${mealType}`}>
+                        <div className="text-xs font-medium text-gray-600 mb-1 px-1">
+                          {mealType}
+                        </div>
+                        <Card
+                          className={`min-h-28 p-2.5 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                            meals.length > 0
+                              ? 'border-solid border-orange-200 bg-orange-50/50'
+                              : 'border-dashed border-gray-300 hover:border-orange-300'
+                          }`}
+                          onClick={() => onSlotClick(dayIndex, mealType)}
+                        >
+                          {renderSlotContent(meals, dayIndex, mealType, true)}
+                        </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
