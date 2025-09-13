@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
+import { RecipeCategoryType } from "@prisma/client";
 
 export const recipeRouter = createTRPCRouter({
   getAll: publicProcedure
@@ -25,7 +26,8 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
-          }
+          },
+          types: true
         }
       });
 
@@ -59,7 +61,8 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
-          }
+          },
+          types: true
         }
       });
     }),
@@ -80,9 +83,10 @@ export const recipeRouter = createTRPCRouter({
         notes: z.string().optional(),
       })).optional(),
       tags: z.array(z.string()).optional(),
+      types: z.array(z.nativeEnum(RecipeCategoryType)).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { ingredients, tags, ...recipeData } = input;
+      const { ingredients, tags, types, ...recipeData } = input;
       
       // Automatically set the authorId to the authenticated user
       const dataWithAuthor = {
@@ -133,6 +137,11 @@ export const recipeRouter = createTRPCRouter({
               }
             }))
           } : undefined,
+          types: types ? {
+            create: types.map(type => ({
+              type: type
+            }))
+          } : undefined,
         },
         include: {
           author: {
@@ -147,7 +156,8 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
-          }
+          },
+          types: true
         }
       });
     }),
@@ -162,13 +172,22 @@ export const recipeRouter = createTRPCRouter({
       servings: z.number().positive().optional(),
       prepTime: z.number().positive().optional(),
       cookTime: z.number().positive().optional(),
+      types: z.array(z.nativeEnum(RecipeCategoryType)).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
-      
+      const { id, types, ...updateData } = input;
+
       return ctx.db.recipe.update({
         where: { id },
-        data: updateData,
+        data: {
+          ...updateData,
+          types: types ? {
+            deleteMany: {},
+            create: types.map(type => ({
+              type: type
+            }))
+          } : undefined,
+        },
         include: {
           author: {
             select: { id: true, name: true, email: true }
@@ -182,7 +201,8 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
-          }
+          },
+          types: true
         }
       });
     }),
@@ -199,16 +219,30 @@ export const recipeRouter = createTRPCRouter({
     .input(z.object({
       query: z.string().min(1),
       limit: z.number().min(1).max(50).default(20),
+      types: z.array(z.nativeEnum(RecipeCategoryType)).optional(),
     }))
     .query(async ({ ctx, input }) => {
+      const whereClause: any = {
+        OR: [
+          { title: { contains: input.query, mode: "insensitive" } },
+          { description: { contains: input.query, mode: "insensitive" } },
+          { content: { contains: input.query, mode: "insensitive" } },
+        ]
+      };
+
+      // Add type filtering if provided
+      if (input.types && input.types.length > 0) {
+        whereClause.types = {
+          some: {
+            type: {
+              in: input.types
+            }
+          }
+        };
+      }
+
       return ctx.db.recipe.findMany({
-        where: {
-          OR: [
-            { title: { contains: input.query, mode: "insensitive" } },
-            { description: { contains: input.query, mode: "insensitive" } },
-            { content: { contains: input.query, mode: "insensitive" } },
-          ]
-        },
+        where: whereClause,
         take: input.limit,
         orderBy: { createdAt: "desc" },
         include: {
@@ -219,7 +253,8 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
-          }
+          },
+          types: true
         }
       });
     }),
@@ -248,7 +283,8 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
-          }
+          },
+          types: true
         }
       });
 
@@ -290,7 +326,53 @@ export const recipeRouter = createTRPCRouter({
             include: {
               tag: true
             }
+          },
+          types: true
+        }
+      });
+
+      let nextCursor: typeof input.cursor | undefined = undefined;
+      if (recipes.length > input.limit) {
+        const nextItem = recipes.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        recipes,
+        nextCursor,
+      };
+    }),
+
+  getByTypes: publicProcedure
+    .input(z.object({
+      types: z.array(z.nativeEnum(RecipeCategoryType)),
+      limit: z.number().min(1).max(50).default(20),
+      cursor: z.string().nullish(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const recipes = await ctx.db.recipe.findMany({
+        where: {
+          types: {
+            some: {
+              type: {
+                in: input.types
+              }
+            }
           }
+        },
+        take: input.limit + 1,
+        cursor: input.cursor ? { id: input.cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
+            select: { id: true, name: true, email: true }
+          },
+          tags: {
+            include: {
+              tag: true
+            }
+          },
+          types: true
         }
       });
 

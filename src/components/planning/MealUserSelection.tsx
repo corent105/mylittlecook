@@ -54,11 +54,12 @@ export default function MealUserSelection({
                 size="sm"
                 variant={selectedMealUsers.includes(mealUser.id) ? "default" : "outline"}
                 onClick={() => {
-                  setSelectedMealUsers(prev =>
-                    prev.includes(mealUser.id)
-                      ? prev.filter(id => id !== mealUser.id)
-                      : [...prev, mealUser.id]
-                  );
+                  const userId = mealUser.id;
+                  const isIncluded = selectedMealUsers.includes(userId);
+                  const newUsers = isIncluded
+                    ? selectedMealUsers.filter(id => id !== userId)
+                    : [...selectedMealUsers, userId];
+                  setSelectedMealUsers(newUsers);
                 }}
                 className={`text-xs sm:text-sm ${selectedMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}`}
               >

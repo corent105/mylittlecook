@@ -130,6 +130,7 @@ model Recipe {
   mealPlans   MealPlan[]
   favorites   UserFavorite[]
   tags        RecipeTag[]
+  types       RecipeType[]
 
   @@map("recipes")
 }
@@ -231,4 +232,27 @@ enum MealType {
   LUNCH
   DINNER
   SNACK
+}
+
+enum RecipeCategoryType {
+  BREAKFAST      // Petit-déjeuner
+  APPETIZER      // Apéritif
+  STARTER        // Entrée
+  MAIN_COURSE    // Plat principal
+  SIDE_DISH      // Accompagnement
+  DESSERT        // Dessert
+  BEVERAGE       // Boisson
+}
+
+model RecipeType {
+  id String @id @default(cuid())
+  type RecipeCategoryType
+  createdAt DateTime @default(now())
+
+  // Relations
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, type])
+  @@map("recipe_types")
 }

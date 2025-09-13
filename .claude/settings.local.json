@@ -14,7 +14,8 @@
       "Bash(pnpm dev:*)",
       "Bash(pkill:*)",
       "Bash(PORT=3000 pnpm dev)",
-      "Bash(pnpm run:*)"
+      "Bash(pnpm run:*)",
+      "Bash(pnpm prisma generate:*)"
     ],
     "deny": [],
     "ask": []

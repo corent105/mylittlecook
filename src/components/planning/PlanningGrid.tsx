@@ -2,6 +2,8 @@
 
 import { Card } from "@/components/ui/card";
 import { ChefHat, Plus, Users, Edit } from "lucide-react";
+import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
+import { RECIPE_TYPES } from '@/lib/constants/recipe-types';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
@@ -42,26 +44,48 @@ export default function PlanningGrid({
         <div className={`font-medium text-gray-900 mb-1 text-xs ${isMobile ? 'line-clamp-2' : 'line-clamp-1'}`}>
           {meal.recipe?.title || 'Recette supprimée'}
         </div>
-        <div className={`flex items-center space-x-1 text-xs text-gray-500 ${isMobile ? 'flex-wrap gap-1' : ''}`}>
-          {meal.recipe?.prepTime && (
-            <span className="bg-orange-100 px-1 py-0.5 rounded text-xs">
-              {meal.recipe.prepTime}min
-            </span>
+
+        <div className="space-y-1">
+          {/* Recipe Types */}
+          {meal.recipe?.types && meal.recipe.types.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {meal.recipe.types.slice(0, isMobile ? 2 : 3).map((recipeType: any) => (
+                <RecipeTypeBadge
+                  key={recipeType.id}
+                  type={recipeType.type as keyof typeof RECIPE_TYPES}
+                  size="sm"
+                />
+              ))}
+              {meal.recipe.types.length > (isMobile ? 2 : 3) && (
+                <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                  +{meal.recipe.types.length - (isMobile ? 2 : 3)}
+                </span>
+              )}
+            </div>
           )}
-          {meal.recipe?.servings && (
-            <span className="bg-blue-100 px-1 py-0.5 rounded text-xs">
-              {meal.recipe.servings}p.
+
+          {/* Recipe Info */}
+          <div className={`flex items-center space-x-1 text-xs text-gray-500 ${isMobile ? 'flex-wrap gap-1' : ''}`}>
+            {meal.recipe?.prepTime && (
+              <span className="bg-orange-100 px-1 py-0.5 rounded text-xs">
+                {meal.recipe.prepTime}min
+              </span>
+            )}
+            {meal.recipe?.servings && (
+              <span className="bg-blue-100 px-1 py-0.5 rounded text-xs">
+                {meal.recipe.servings}p.
+              </span>
+            )}
+            <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
+              <Users className={`${isMobile ? 'h-2 w-2' : 'h-2.5 w-2.5'} mr-0.5`} />
+              {meal.mealUserAssignments?.length || 0}
             </span>
-          )}
-          <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
-            <Users className={`${isMobile ? 'h-2 w-2' : 'h-2.5 w-2.5'} mr-0.5`} />
-            {meal.mealUserAssignments?.length || 0}
-          </span>
-          {meal.cookResponsible && (
-            <span className="bg-yellow-100 px-1 py-0.5 rounded text-xs flex items-center">
-              👨‍🍳 {meal.cookResponsible.pseudo}
-            </span>
-          )}
+            {meal.cookResponsible && (
+              <span className="bg-yellow-100 px-1 py-0.5 rounded text-xs flex items-center">
+                👨‍🍳 {meal.cookResponsible.pseudo}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

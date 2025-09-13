@@ -7,6 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ChefHat, Search, Edit, Trash2, Eye } from "lucide-react";
 import { api } from "@/trpc/react";
 import Link from "next/link";
+import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
+import { RECIPE_TYPES, getCompatibleRecipeTypes } from '@/lib/constants/recipe-types';
+import { RecipeCategoryType } from '@prisma/client';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -42,9 +45,11 @@ export default function EditMealPlanModal({
   weekStart
 }: EditMealPlanModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTypes, setSelectedTypes] = useState<RecipeCategoryType[]>([]);
 
   const { data: recipes = [], isLoading: recipesLoading } = api.recipe.search.useQuery({
     query: searchQuery,
+    types: selectedTypes.length > 0 ? selectedTypes : undefined,
   }, {
     enabled: isOpen && searchQuery.length > 0,
   });
@@ -52,10 +57,30 @@ export default function EditMealPlanModal({
   const { data: allRecipes } = api.recipe.getAll.useQuery({
     limit: 20,
   }, {
-    enabled: isOpen
+    enabled: isOpen && selectedTypes.length === 0 && searchQuery.length === 0
   });
 
-  const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes || []);
+  const { data: filteredRecipes } = api.recipe.getByTypes.useQuery({
+    types: selectedTypes,
+    limit: 20,
+  }, {
+    enabled: isOpen && selectedTypes.length > 0 && searchQuery.length === 0
+  });
+
+  const displayedRecipes = searchQuery.length > 0
+    ? recipes
+    : selectedTypes.length > 0
+      ? (filteredRecipes?.recipes || [])
+      : (allRecipes?.recipes || []);
+
+  // Get compatible types for current meal type
+  const getMealTypeFromMealPlan = () => {
+    if (!editingMealPlan) return 'LUNCH';
+    const mealType = editingMealPlan.mealType;
+    return mealType as 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+  };
+
+  const compatibleTypes = getCompatibleRecipeTypes(getMealTypeFromMealPlan());
 
   const getMealTypeLabel = (mealType: string) => {
     switch (mealType) {
@@ -68,6 +93,7 @@ export default function EditMealPlanModal({
 
   const handleClose = () => {
     setSearchQuery('');
+    setSelectedTypes([]);
     onClose();
   };
 
@@ -105,9 +131,30 @@ export default function EditMealPlanModal({
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-blue-900">{editSelectedRecipe.title}</div>
-                  <div className="flex items-center space-x-2 text-xs text-blue-600 mt-1">
-                    {editSelectedRecipe.prepTime && <span className="bg-blue-100 px-2 py-1 rounded">{editSelectedRecipe.prepTime}min</span>}
-                    {editSelectedRecipe.servings && <span className="bg-blue-100 px-2 py-1 rounded">{editSelectedRecipe.servings} pers.</span>}
+                  <div className="space-y-1 mt-1">
+                    {/* Recipe Types */}
+                    {editSelectedRecipe.types && editSelectedRecipe.types.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {editSelectedRecipe.types.slice(0, 3).map((recipeType: any) => (
+                          <RecipeTypeBadge
+                            key={recipeType.id}
+                            type={recipeType.type as keyof typeof RECIPE_TYPES}
+                            size="sm"
+                          />
+                        ))}
+                        {editSelectedRecipe.types.length > 3 && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                            +{editSelectedRecipe.types.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Recipe Info */}
+                    <div className="flex items-center space-x-2 text-xs text-blue-600">
+                      {editSelectedRecipe.prepTime && <span className="bg-blue-100 px-2 py-1 rounded">{editSelectedRecipe.prepTime}min</span>}
+                      {editSelectedRecipe.servings && <span className="bg-blue-100 px-2 py-1 rounded">{editSelectedRecipe.servings} pers.</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="flex space-x-2">
@@ -132,11 +179,12 @@ export default function EditMealPlanModal({
                   size="sm"
                   variant={popupSelectedMealUsers.includes(mealUser.id) ? "default" : "outline"}
                   onClick={() => {
-                    setPopupSelectedMealUsers(prev =>
-                      prev.includes(mealUser.id)
-                        ? prev.filter(id => id !== mealUser.id)
-                        : [...prev, mealUser.id]
-                    );
+                    const userId = mealUser.id;
+                    const isIncluded = popupSelectedMealUsers.includes(userId);
+                    const newUsers = isIncluded
+                      ? popupSelectedMealUsers.filter(id => id !== userId)
+                      : [...popupSelectedMealUsers, userId];
+                    setPopupSelectedMealUsers(newUsers);
                   }}
                   className={popupSelectedMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}
                 >
@@ -176,6 +224,51 @@ export default function EditMealPlanModal({
           {/* Change Recipe Section */}
           <div className="border-t pt-4">
             <h4 className="font-medium text-sm mb-2">Changer de recette</h4>
+
+            {/* Type Filter */}
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3">
+              <h5 className="font-medium text-sm mb-2 text-blue-800">Filtrer par type de recette</h5>
+              <div className="flex flex-wrap gap-2">
+                {compatibleTypes.map((recipeType) => {
+                  const isSelected = selectedTypes.includes(recipeType.value as RecipeCategoryType);
+                  return (
+                    <Button
+                      key={recipeType.value}
+                      type="button"
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const typeValue = recipeType.value as RecipeCategoryType;
+                        const currentType = typeValue;
+                        if (isSelected) {
+                          const newTypes = selectedTypes.filter(t => t !== currentType);
+                          setSelectedTypes(newTypes);
+                        } else {
+                          const newTypes = [...selectedTypes, currentType];
+                          setSelectedTypes(newTypes);
+                        }
+                      }}
+                      className={isSelected ? 'bg-blue-600 hover:bg-blue-700 border-blue-600' : 'hover:border-blue-300'}
+                    >
+                      <span className="mr-1">{recipeType.emoji}</span>
+                      {recipeType.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              {selectedTypes.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedTypes([])}
+                  className="mt-2 text-blue-600 hover:text-blue-700"
+                >
+                  Effacer les filtres
+                </Button>
+              )}
+            </div>
+
             <div className="relative mb-3">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -213,9 +306,30 @@ export default function EditMealPlanModal({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate text-sm">{recipe.title}</div>
-                          <div className="flex items-center space-x-2 text-xs text-gray-400 mt-0.5">
-                            {recipe.prepTime && <span className="bg-orange-100 px-1.5 py-0.5 rounded">{recipe.prepTime}min</span>}
-                            {recipe.servings && <span className="bg-blue-100 px-1.5 py-0.5 rounded">{recipe.servings} pers.</span>}
+                          <div className="space-y-1 mt-0.5">
+                            {/* Recipe Types */}
+                            {recipe.types && recipe.types.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {recipe.types.slice(0, 2).map((recipeType: any) => (
+                                  <RecipeTypeBadge
+                                    key={recipeType.id}
+                                    type={recipeType.type as keyof typeof RECIPE_TYPES}
+                                    size="sm"
+                                  />
+                                ))}
+                                {recipe.types.length > 2 && (
+                                  <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                                    +{recipe.types.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Recipe Info */}
+                            <div className="flex items-center space-x-2 text-xs text-gray-400">
+                              {recipe.prepTime && <span className="bg-orange-100 px-1.5 py-0.5 rounded">{recipe.prepTime}min</span>}
+                              {recipe.servings && <span className="bg-blue-100 px-1.5 py-0.5 rounded">{recipe.servings} pers.</span>}
+                            </div>
                           </div>
                         </div>
                       </div>
