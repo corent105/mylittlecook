@@ -47,12 +47,18 @@ export default function ShoppingListPage() {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
-  // Get meal plans for the week to show recipes summary
+  // Get meal plans for the week to show recipes summary (filtered by cook responsible)
   const { data: weekMealPlans = [] } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: selectedMealUsers,
     weekStart,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+  });
+
+  // Filter meal plans by cook responsible for recipes display
+  const filteredMealPlans = weekMealPlans.filter(mealPlan => {
+    if (cookFilter === 'all') return true;
+    return mealPlan.cookResponsibleId === cookFilter;
   });
 
   // Get available cooks for filtering
@@ -100,7 +106,7 @@ export default function ShoppingListPage() {
   const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
   const MEAL_TYPES = { BREAKFAST: 'Petit-déjeuner', LUNCH: 'Déjeuner', DINNER: 'Dîner' };
 
-  const groupedRecipes = weekMealPlans.reduce((acc, mealPlan) => {
+  const groupedRecipes = filteredMealPlans.reduce((acc, mealPlan) => {
     if (!mealPlan.recipe) return acc;
     
     const dayName = DAYS[mealPlan.dayOfWeek];
@@ -115,7 +121,7 @@ export default function ShoppingListPage() {
   }, {} as Record<string, Array<{ id: string; title: string }>>);
 
   const uniqueRecipes = Array.from(
-    new Map(weekMealPlans.filter(mp => mp.recipe).map(mp => [mp.recipe!.id, mp.recipe!])).values()
+    new Map(filteredMealPlans.filter(mp => mp.recipe).map(mp => [mp.recipe!.id, mp.recipe!])).values()
   );
 
   const exportToText = () => {
@@ -213,7 +219,7 @@ export default function ShoppingListPage() {
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">Filtrer par responsable de cuisine</h3>
                 <p className="text-sm text-gray-600">
-                  Afficher les ingrédients pour un cuisinier spécifique ou tous les ingrédients
+                  Afficher les recettes et ingrédients pour un cuisinier spécifique ou pour tous
                 </p>
               </div>
               <div className="w-48">

@@ -4,7 +4,19 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChefHat, Plus, Calendar, ChevronLeft, ChevronRight, Search, Download, X, Eye, Trash2, Users } from "lucide-react";
+import {
+  ChefHat,
+  Plus,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Download,
+  X,
+  Users,
+  Edit,
+  Trash2, Eye
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
@@ -24,6 +36,8 @@ export default function PlanningPage() {
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [popupSelectedMealUsers, setPopupSelectedMealUsers] = useState<string[]>([]);
   const [cookResponsibleId, setCookResponsibleId] = useState<string>('');
+  const [editingMealPlan, setEditingMealPlan] = useState<any | null>(null);
+  const [editSelectedRecipe, setEditSelectedRecipe] = useState<any | null>(null);
   
   const weekStart = getWeekStart(currentWeek);
   
@@ -132,6 +146,200 @@ export default function PlanningPage() {
     setCurrentWeek(newWeek);
   };
 
+  const getNextMeals = () => {
+    const now = new Date();
+    const currentDateTime = now.getTime();
+
+    // Define meal time boundaries
+    const mealTimes = {
+      'BREAKFAST': { hour: 9, label: 'Petit-déjeuner' },
+      'LUNCH': { hour: 14, label: 'Déjeuner' },
+      'DINNER': { hour: 20, label: 'Dîner' }
+    };
+
+    const mealOrder = ['BREAKFAST', 'LUNCH', 'DINNER'];
+    const nextMeals: any[] = [];
+
+    // Create a function to get meals for multiple weeks
+    const getAllPotentialMeals = async () => {
+      const potentialMeals: any[] = [];
+
+      // Check current week and next 2 weeks
+      for (let weekOffset = 0; weekOffset < 3; weekOffset++) {
+        const checkWeekStart = new Date(weekStart);
+        checkWeekStart.setDate(weekStart.getDate() + (weekOffset * 7));
+
+        // For current week, use existing mealPlan data
+        // For future weeks, we'll need to add logic to fetch them
+        const weekMeals = weekOffset === 0 ? mealPlan : [];
+
+        for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+          for (const mealType of mealOrder) {
+            const dayDate = new Date(checkWeekStart);
+            dayDate.setDate(checkWeekStart.getDate() + dayOfWeek);
+
+            // Set meal time for comparison
+            const mealDateTime = new Date(dayDate);
+            mealDateTime.setHours(mealTimes[mealType as keyof typeof mealTimes].hour, 0, 0, 0);
+
+            // Only include future meals
+            if (mealDateTime.getTime() > currentDateTime) {
+              const mealsForSlot = weekMeals.filter(m =>
+                m.dayOfWeek === dayOfWeek && m.mealType === mealType
+              );
+
+              mealsForSlot.forEach(meal => {
+                potentialMeals.push({
+                  ...meal,
+                  dayName: DAYS[dayOfWeek],
+                  mealTypeLabel: mealTimes[mealType as keyof typeof mealTimes].label,
+                  date: dayDate,
+                  mealDateTime: mealDateTime.getTime(),
+                  isNext: potentialMeals.length === 0
+                });
+              });
+            }
+          }
+        }
+      }
+
+      return potentialMeals;
+    };
+
+    // Get all potential meals and sort by datetime
+    const allMeals: any[] = [];
+
+    // Process current week meals
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      for (const mealType of mealOrder) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(weekStart.getDate() + dayOfWeek);
+
+        // Set meal time for comparison
+        const mealDateTime = new Date(dayDate);
+        mealDateTime.setHours(mealTimes[mealType as keyof typeof mealTimes].hour, 0, 0, 0);
+
+        // Only include future meals
+        if (mealDateTime.getTime() > currentDateTime) {
+          const mealsForSlot = mealPlan.filter(m =>
+            m.dayOfWeek === dayOfWeek && m.mealType === mealType
+          );
+
+          mealsForSlot.forEach(meal => {
+            allMeals.push({
+              ...meal,
+              dayName: DAYS[dayOfWeek],
+              mealTypeLabel: mealTimes[mealType as keyof typeof mealTimes].label,
+              date: dayDate,
+              mealDateTime: mealDateTime.getTime()
+            });
+          });
+        }
+      }
+    }
+
+    // Sort by datetime and take first 6
+    const sortedMeals = allMeals
+      .sort((a, b) => a.mealDateTime - b.mealDateTime)
+      .slice(0, 6)
+      .map((meal, index) => ({
+        ...meal,
+        isNext: index === 0
+      }));
+
+    return sortedMeals;
+  };
+
+  const nextMeals = getNextMeals();
+
+  // Also get meals from next week if needed
+  const { data: nextWeekMealPlan = [] } = api.mealPlan.getWeekPlan.useQuery({
+    mealUserIds: selectedMealUsers,
+    weekStart: new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000), // Next week
+  }, {
+    enabled: session?.user?.id !== undefined && selectedMealUsers.length > 0
+  });
+
+  // Combined function to get next meals from current and next week
+  const getCombinedNextMeals = () => {
+    const now = new Date();
+    const currentDateTime = now.getTime();
+
+    const mealTimes = {
+      'BREAKFAST': { hour: 9, label: 'Petit-déjeuner' },
+      'LUNCH': { hour: 14, label: 'Déjeuner' },
+      'DINNER': { hour: 20, label: 'Dîner' }
+    };
+
+    const mealOrder = ['BREAKFAST', 'LUNCH', 'DINNER'];
+    const allMeals: any[] = [];
+
+    // Process current week
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      for (const mealType of mealOrder) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(weekStart.getDate() + dayOfWeek);
+
+        const mealDateTime = new Date(dayDate);
+        mealDateTime.setHours(mealTimes[mealType as keyof typeof mealTimes].hour, 0, 0, 0);
+
+        if (mealDateTime.getTime() > currentDateTime) {
+          const mealsForSlot = mealPlan.filter(m =>
+            m.dayOfWeek === dayOfWeek && m.mealType === mealType
+          );
+
+          mealsForSlot.forEach(meal => {
+            allMeals.push({
+              ...meal,
+              dayName: DAYS[dayOfWeek],
+              mealTypeLabel: mealTimes[mealType as keyof typeof mealTimes].label,
+              date: dayDate,
+              mealDateTime: mealDateTime.getTime()
+            });
+          });
+        }
+      }
+    }
+
+    // Process next week
+    const nextWeekStart = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      for (const mealType of mealOrder) {
+        const dayDate = new Date(nextWeekStart);
+        dayDate.setDate(nextWeekStart.getDate() + dayOfWeek);
+
+        const mealDateTime = new Date(dayDate);
+        mealDateTime.setHours(mealTimes[mealType as keyof typeof mealTimes].hour, 0, 0, 0);
+
+        if (mealDateTime.getTime() > currentDateTime) {
+          const mealsForSlot = nextWeekMealPlan.filter(m =>
+            m.dayOfWeek === dayOfWeek && m.mealType === mealType
+          );
+
+          mealsForSlot.forEach(meal => {
+            allMeals.push({
+              ...meal,
+              dayName: DAYS[dayOfWeek],
+              mealTypeLabel: mealTimes[mealType as keyof typeof mealTimes].label,
+              date: dayDate,
+              mealDateTime: mealDateTime.getTime()
+            });
+          });
+        }
+      }
+    }
+
+    return allMeals
+      .sort((a, b) => a.mealDateTime - b.mealDateTime)
+      .slice(0, 6)
+      .map((meal, index) => ({
+        ...meal,
+        isNext: index === 0
+      }));
+  };
+
+  const combinedNextMeals = getCombinedNextMeals();
+
 
   const getMealsForSlot = (day: number, mealType: MealType) => {
     // Convert MealType to match database enum
@@ -154,6 +362,16 @@ export default function PlanningPage() {
     setPopupSelectedMealUsers(selectedMealUsers);
     // Reset cook responsible
     setCookResponsibleId('');
+  };
+
+  const handleMealCardClick = (meal: any, event: React.MouseEvent) => {
+    event.stopPropagation();
+    console.log('Meal card clicked:', meal);
+    setEditingMealPlan(meal);
+    setEditSelectedRecipe(meal.recipe);
+    // Initialize with current meal users and cook responsible
+    setPopupSelectedMealUsers(meal.mealUserAssignments?.map((assignment: any) => assignment.mealUserId) || []);
+    setCookResponsibleId(meal.cookResponsible?.id || '');
   };
 
   const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes || []);
@@ -206,13 +424,54 @@ export default function PlanningPage() {
     if (event) {
       event.stopPropagation();
     }
-    
+
     try {
       await removeMealMutation.mutateAsync({
         mealPlanId,
       });
+      // Close edit dialog if we're editing this meal plan
+      if (editingMealPlan?.id === mealPlanId) {
+        setEditingMealPlan(null);
+        setEditSelectedRecipe(null);
+        setPopupSelectedMealUsers([]);
+        setCookResponsibleId('');
+      }
     } catch (error) {
       console.error('Error removing meal:', error);
+    }
+  };
+
+  const updateMealPlan = async () => {
+    if (!editingMealPlan || !editSelectedRecipe || popupSelectedMealUsers.length === 0) {
+      console.log('Cannot update meal plan: missing data');
+      return;
+    }
+
+    try {
+      // Remove old meal plan
+      await removeMealMutation.mutateAsync({
+        mealPlanId: editingMealPlan.id,
+      });
+
+      // Add updated meal plan
+      await addMealMutation.mutateAsync({
+        mealUserIds: popupSelectedMealUsers,
+        weekStart,
+        dayOfWeek: editingMealPlan.dayOfWeek,
+        mealType: editingMealPlan.mealType as any,
+        recipeId: editSelectedRecipe.id,
+        cookResponsibleId: cookResponsibleId || undefined,
+      });
+
+      // Close edit dialog
+      setEditingMealPlan(null);
+      setEditSelectedRecipe(null);
+      setPopupSelectedMealUsers([]);
+      setCookResponsibleId('');
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Error updating meal plan:', error);
+      alert('Erreur lors de la mise à jour du meal plan');
     }
   };
 
@@ -292,6 +551,92 @@ export default function PlanningPage() {
           </Card>
         )}
 
+        {/* Next Meals Section */}
+        {combinedNextMeals.length > 0 && (
+          <Card className="mb-6 sm:mb-8 p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-orange-500" />
+                Prochains repas
+              </h3>
+              {combinedNextMeals[0]?.isNext && (
+                <span className="text-xs sm:text-sm text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
+                  Prochain repas
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {combinedNextMeals.map((meal, index) => (
+                <div
+                  key={meal.id}
+                  className={`relative group cursor-pointer transition-all duration-200 ${
+                    index === 0 ? 'ring-2 ring-orange-200 bg-orange-50' : 'hover:shadow-md'
+                  } rounded-lg border border-gray-200 p-3`}
+                  onClick={(e) => handleMealCardClick(meal, e)}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {meal.recipe?.imageUrl ? (
+                        <img
+                          src={meal.recipe.imageUrl}
+                          alt={meal.recipe.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ChefHat className="h-6 w-6 text-gray-400" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-gray-500">
+                          {meal.date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' })} • {meal.mealTypeLabel}
+                        </p>
+                        {index === 0 && (
+                          <span className="text-xs text-orange-600 font-medium">
+                            À venir
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-2">
+                        {meal.recipe?.title || 'Recette supprimée'}
+                      </h4>
+
+                      <div className="flex items-center space-x-1 text-xs">
+                        {meal.recipe?.prepTime && (
+                          <span className="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                            {meal.recipe.prepTime}min
+                          </span>
+                        )}
+                        {meal.recipe?.servings && (
+                          <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                            {meal.recipe.servings}p.
+                          </span>
+                        )}
+                        <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center">
+                          <Users className="h-2.5 w-2.5 mr-0.5" />
+                          {meal.mealUserAssignments?.length || 0}
+                        </span>
+                        {meal.cookResponsible && (
+                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded flex items-center">
+                            👨‍🍳 {meal.cookResponsible.pseudo}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Edit className="h-3 w-3 text-gray-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* Week Navigation */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex items-center space-x-2 sm:space-x-4">
@@ -323,6 +668,7 @@ export default function PlanningPage() {
             </Button>
           </Link>
         </div>
+
 
         {/* Planning Grid */}
         <div className="md:grid md:grid-cols-8 md:gap-4 mb-8">
@@ -357,8 +703,12 @@ export default function PlanningPage() {
                       {meals.length > 0 ? (
                         <div className="space-y-2 h-full">
                           {meals.map((meal, mealIndex) => (
-                            <div key={meal.id} className="relative group">
-                              <div className="text-sm bg-white rounded border border-orange-100 p-2 shadow-sm">
+                            <div
+                              key={meal.id}
+                              className="relative group cursor-pointer hover:bg-orange-25 rounded transition-colors"
+                              onClick={(e) => handleMealCardClick(meal, e)}
+                            >
+                              <div className="text-sm bg-white rounded border border-orange-100 p-2 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="font-medium text-gray-900 mb-1 text-xs line-clamp-1">
                                   {meal.recipe?.title || 'Recette supprimée'}
                                 </div>
@@ -384,29 +734,9 @@ export default function PlanningPage() {
                                   )}
                                 </div>
                               </div>
-                              
-                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                                {meal.recipe && (
-                                  <Link href={`/recettes/${meal.recipe.id}`}>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-5 w-5 p-0 bg-white/90 hover:bg-white"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <Eye className="h-2.5 w-2.5" />
-                                    </Button>
-                                  </Link>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-5 w-5 p-0 bg-white/90 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                  onClick={(e) => removeMealFromSlot(meal.id, e)}
-                                  disabled={removeMealMutation.isPending}
-                                >
-                                  <Trash2 className="h-2.5 w-2.5" />
-                                </Button>
+
+                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Edit className="h-3 w-3 text-gray-400" />
                               </div>
                             </div>
                           ))}
@@ -461,8 +791,12 @@ export default function PlanningPage() {
                               {meals.length > 0 ? (
                                 <div className="space-y-1.5 h-full">
                                   {meals.map((meal, mealIndex) => (
-                                    <div key={meal.id} className="relative group">
-                                      <div className="text-sm bg-white rounded border border-orange-100 p-1.5 shadow-sm">
+                                    <div
+                                      key={meal.id}
+                                      className="relative group cursor-pointer hover:bg-orange-25 rounded transition-colors"
+                                      onClick={(e) => handleMealCardClick(meal, e)}
+                                    >
+                                      <div className="text-sm bg-white rounded border border-orange-100 p-1.5 shadow-sm hover:shadow-md transition-shadow">
                                         <div className="font-medium text-gray-900 mb-1 text-xs line-clamp-2">
                                           {meal.recipe?.title || 'Recette supprimée'}
                                         </div>
@@ -488,29 +822,9 @@ export default function PlanningPage() {
                                           )}
                                         </div>
                                       </div>
-                                      
-                                      <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
-                                        {meal.recipe && (
-                                          <Link href={`/recettes/${meal.recipe.id}`}>
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              className="h-4 w-4 p-0 bg-white/90 hover:bg-white"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <Eye className="h-2 w-2" />
-                                            </Button>
-                                          </Link>
-                                        )}
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-4 w-4 p-0 bg-white/90 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                          onClick={(e) => removeMealFromSlot(meal.id, e)}
-                                          disabled={removeMealMutation.isPending}
-                                        >
-                                          <Trash2 className="h-2 w-2" />
-                                        </Button>
+
+                                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Edit className="h-2.5 w-2.5 text-gray-400" />
                                       </div>
                                     </div>
                                   ))}
@@ -699,6 +1013,224 @@ export default function PlanningPage() {
                     Importer depuis un lien
                   </Button>
                 </Link>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Meal Plan Dialog */}
+        <Dialog open={!!editingMealPlan} onOpenChange={(open) => {
+          if (!open) {
+            setEditingMealPlan(null);
+            setEditSelectedRecipe(null);
+            setPopupSelectedMealUsers([]);
+            setCookResponsibleId('');
+            setSearchQuery('');
+          }
+        }}>
+          <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Modifier le repas
+                {editingMealPlan && (
+                  <span className="text-sm text-gray-500 font-normal">
+                    - {DAYS[editingMealPlan.dayOfWeek]} {editingMealPlan.mealType === 'BREAKFAST' ? 'Petit-déjeuner' : editingMealPlan.mealType === 'LUNCH' ? 'Déjeuner' : 'Dîner'}
+                  </span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 overflow-y-auto">
+              {/* Current Recipe */}
+              {editSelectedRecipe && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-sm mb-2 text-blue-800">Recette actuelle</h4>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center overflow-hidden">
+                      {editSelectedRecipe.imageUrl ? (
+                        <img
+                          src={editSelectedRecipe.imageUrl}
+                          alt={editSelectedRecipe.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ChefHat className="h-6 w-6 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-blue-900">{editSelectedRecipe.title}</div>
+                      <div className="flex items-center space-x-2 text-xs text-blue-600 mt-1">
+                        {editSelectedRecipe.prepTime && <span className="bg-blue-100 px-2 py-1 rounded">{editSelectedRecipe.prepTime}min</span>}
+                        {editSelectedRecipe.servings && <span className="bg-blue-100 px-2 py-1 rounded">{editSelectedRecipe.servings} pers.</span>}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Link href={`/recettes/${editSelectedRecipe.id}`} target="_blank">
+                        <Button size="sm" variant="outline">
+                          <Eye className="h-4 w-4 mr-1" />
+                          Voir
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Meal Users Selection */}
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-sm mb-2">Pour qui cette recette ?</h4>
+                <div className="flex flex-wrap gap-2">
+                  {mealUsers.map(mealUser => (
+                    <Button
+                      key={mealUser.id}
+                      size="sm"
+                      variant={popupSelectedMealUsers.includes(mealUser.id) ? "default" : "outline"}
+                      onClick={() => {
+                        setPopupSelectedMealUsers(prev =>
+                          prev.includes(mealUser.id)
+                            ? prev.filter(id => id !== mealUser.id)
+                            : [...prev, mealUser.id]
+                        );
+                      }}
+                      className={popupSelectedMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    >
+                      {mealUser.pseudo}
+                    </Button>
+                  ))}
+                </div>
+                {popupSelectedMealUsers.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">Veuillez sélectionner au moins une personne</p>
+                )}
+              </div>
+
+              {/* Cook Responsible Selection */}
+              {popupSelectedMealUsers.length > 0 && (
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">Qui cuisine ? (optionnel)</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {mealUsers
+                      .filter(mealUser => popupSelectedMealUsers.includes(mealUser.id))
+                      .map(mealUser => (
+                        <Button
+                          key={mealUser.id}
+                          size="sm"
+                          variant={cookResponsibleId === mealUser.id ? "default" : "outline"}
+                          onClick={() => {
+                            setCookResponsibleId(cookResponsibleId === mealUser.id ? '' : mealUser.id);
+                          }}
+                          className={cookResponsibleId === mealUser.id ? "bg-orange-600 hover:bg-orange-700" : ""}
+                        >
+                          👨‍🍳 {mealUser.pseudo}
+                        </Button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Change Recipe Section */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-sm mb-2">Changer de recette</h4>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Rechercher une autre recette..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <div className="max-h-48 overflow-y-auto border rounded-md">
+                  {(recipesLoading || (!allRecipes && searchQuery.length === 0)) ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-pulse">Chargement des recettes...</div>
+                    </div>
+                  ) : displayedRecipes.length > 0 ? (
+                    displayedRecipes
+                      .filter(recipe => recipe.id !== editSelectedRecipe?.id)
+                      .map((recipe) => (
+                        <div
+                          key={recipe.id}
+                          className="flex items-center justify-between p-3 hover:bg-gray-50 border-b last:border-b-0"
+                        >
+                          <div className="flex items-center space-x-3 flex-1">
+                            <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center overflow-hidden">
+                              {recipe.imageUrl ? (
+                                <img
+                                  src={recipe.imageUrl}
+                                  alt={recipe.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ChefHat className="h-5 w-5 text-gray-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate text-sm">{recipe.title}</div>
+                              <div className="flex items-center space-x-2 text-xs text-gray-400 mt-0.5">
+                                {recipe.prepTime && <span className="bg-orange-100 px-1.5 py-0.5 rounded">{recipe.prepTime}min</span>}
+                                {recipe.servings && <span className="bg-blue-100 px-1.5 py-0.5 rounded">{recipe.servings} pers.</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditSelectedRecipe(recipe);
+                            }}
+                          >
+                            Sélectionner
+                          </Button>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">
+                      {searchQuery ? 'Aucune recette trouvée' : 'Aucune recette disponible'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-4 border-t flex justify-between">
+                <Button
+                  variant="outline"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  onClick={() => {
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce repas du planning ?')) {
+                      if (editingMealPlan) {
+                        removeMealFromSlot(editingMealPlan.id);
+                      }
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </Button>
+
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingMealPlan(null);
+                      setEditSelectedRecipe(null);
+                      setPopupSelectedMealUsers([]);
+                      setCookResponsibleId('');
+                      setSearchQuery('');
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    disabled={!editSelectedRecipe || popupSelectedMealUsers.length === 0 || addMealMutation.isPending || removeMealMutation.isPending}
+                    className="bg-orange-600 hover:bg-orange-700"
+                    onClick={updateMealPlan}
+                  >
+                    {(addMealMutation.isPending || removeMealMutation.isPending) ? 'Modification...' : 'Modifier'}
+                  </Button>
+                </div>
               </div>
             </div>
           </DialogContent>
