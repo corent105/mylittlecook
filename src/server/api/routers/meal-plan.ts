@@ -52,7 +52,8 @@ export const mealPlanRouter = createTRPCRouter({
             include: {
               mealUser: true
             }
-          }
+          },
+          cookResponsible: true
         },
         orderBy: [
           { dayOfWeek: "asc" },
@@ -69,6 +70,7 @@ export const mealPlanRouter = createTRPCRouter({
       dayOfWeek: z.number().min(0).max(6),
       mealType: z.nativeEnum(MealType),
       recipeId: z.string(),
+      cookResponsibleId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       let mealUserIds = input.mealUserIds || [];
@@ -111,6 +113,7 @@ export const mealPlanRouter = createTRPCRouter({
           dayOfWeek: input.dayOfWeek,
           mealType: input.mealType,
           recipeId: input.recipeId,
+          cookResponsibleId: input.cookResponsibleId,
         },
         include: {
           recipe: {
@@ -156,7 +159,8 @@ export const mealPlanRouter = createTRPCRouter({
             include: {
               mealUser: true
             }
-          }
+          },
+          cookResponsible: true
         }
       });
     }),
@@ -177,6 +181,7 @@ export const mealPlanRouter = createTRPCRouter({
     .input(z.object({
       mealUserIds: z.array(z.string()),
       weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      cookResponsibleId: z.string().optional(), // Filter by cook responsible
     }))
     .query(async ({ ctx, input }) => {
       // If no meal users provided, return empty array
@@ -206,7 +211,10 @@ export const mealPlanRouter = createTRPCRouter({
           },
           recipe: {
             isNot: null
-          }
+          },
+          ...(input.cookResponsibleId && {
+            cookResponsibleId: input.cookResponsibleId
+          })
         },
         include: {
           recipe: {
@@ -365,6 +373,57 @@ export const mealPlanRouter = createTRPCRouter({
       return results;
     }),
 
+  getCooksForWeek: publicProcedure
+    .input(z.object({
+      mealUserIds: z.array(z.string()),
+      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+    }))
+    .query(async ({ ctx, input }) => {
+      // If no meal users provided, return empty array
+      if (input.mealUserIds.length === 0) {
+        return [];
+      }
+
+      // Create date range for the week
+      const weekStart = new Date(input.weekStart);
+      weekStart.setUTCHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+      const mealPlans = await ctx.db.mealPlan.findMany({
+        where: {
+          week: {
+            gte: weekStart,
+            lt: weekEnd
+          },
+          mealUserAssignments: {
+            some: {
+              mealUserId: {
+                in: input.mealUserIds
+              }
+            }
+          },
+          cookResponsible: {
+            isNot: null
+          }
+        },
+        include: {
+          cookResponsible: true
+        },
+        distinct: ['cookResponsibleId']
+      });
+
+      // Extract unique cook responsible profiles
+      const uniqueCooks = mealPlans
+        .filter(mp => mp.cookResponsible)
+        .map(mp => mp.cookResponsible!)
+        .filter((cook, index, self) => 
+          self.findIndex(c => c.id === cook.id) === index
+        );
+
+      return uniqueCooks;
+    }),
+
   addMealUserToMeal: protectedProcedure
     .input(z.object({
       mealPlanId: z.string(),
@@ -441,7 +500,8 @@ export const mealPlanRouter = createTRPCRouter({
             include: {
               mealUser: true
             }
-          }
+          },
+          cookResponsible: true
         }
       });
     }),

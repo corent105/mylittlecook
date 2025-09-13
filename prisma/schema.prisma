@@ -86,6 +86,7 @@ model MealUser {
   ownerId   String   // Propriétaire du profil (qui a créé le foyer)
   owner     User @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   mealPlanAssignments MealPlanAssignment[]
+  cookResponsibleFor  MealPlan[] @relation("CookResponsible")
 
   @@map("meal_users")
 }
@@ -102,6 +103,10 @@ model MealPlan {
   recipeId  String?
   recipe    Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
   mealUserAssignments MealPlanAssignment[]
+  
+  // Responsable de cuisine
+  cookResponsibleId String?
+  cookResponsible   MealUser? @relation("CookResponsible", fields: [cookResponsibleId], references: [id], onDelete: SetNull)
 
   @@map("meal_plans")
 }

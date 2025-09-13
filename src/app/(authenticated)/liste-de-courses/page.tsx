@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
@@ -14,6 +15,7 @@ export default function ShoppingListPage() {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [showRecipes, setShowRecipes] = useState(false);
+  const [cookFilter, setCookFilter] = useState<string>('all'); // 'all' or specific cook ID
 
   const getWeekStart = (date: Date) => {
     const start = new Date(date);
@@ -40,12 +42,21 @@ export default function ShoppingListPage() {
   const { data: shoppingList = [], isLoading } = api.mealPlan.generateShoppingList.useQuery({
     mealUserIds: selectedMealUsers,
     weekStart,
+    cookResponsibleId: cookFilter === 'all' ? undefined : cookFilter,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
   // Get meal plans for the week to show recipes summary
   const { data: weekMealPlans = [] } = api.mealPlan.getWeekPlan.useQuery({
+    mealUserIds: selectedMealUsers,
+    weekStart,
+  }, {
+    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+  });
+
+  // Get available cooks for filtering
+  const { data: availableCooks = [] } = api.mealPlan.getCooksForWeek.useQuery({
     mealUserIds: selectedMealUsers,
     weekStart,
   }, {
@@ -195,6 +206,37 @@ export default function ShoppingListPage() {
           </div>
         </div>
 
+        {/* Filter Section */}
+        {availableCooks.length > 0 && (
+          <Card className="mb-8 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Filtrer par responsable de cuisine</h3>
+                <p className="text-sm text-gray-600">
+                  Afficher les ingrédients pour un cuisinier spécifique ou tous les ingrédients
+                </p>
+              </div>
+              <div className="w-48">
+                <Select value={cookFilter} onValueChange={setCookFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un filtre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      🛒 Tous les ingrédients
+                    </SelectItem>
+                    {availableCooks.map((cook) => (
+                      <SelectItem key={cook.id} value={cook.id}>
+                        👨‍🍳 {cook.pseudo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Loading State */}
         {isLoading && (
           <Card className="p-8">
@@ -279,9 +321,19 @@ export default function ShoppingListPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         Résumé de la liste
+                        {cookFilter !== 'all' && (
+                          <span className="text-sm font-normal text-orange-600 ml-2">
+                            (Filtré par {availableCooks.find(c => c.id === cookFilter)?.pseudo})
+                          </span>
+                        )}
                       </h3>
                       <p className="text-gray-600">
                         {shoppingList.length} ingrédients à acheter
+                        {cookFilter !== 'all' && availableCooks.length > 0 && (
+                          <span className="text-sm text-orange-600 ml-1">
+                            - {availableCooks.find(c => c.id === cookFilter)?.pseudo} 👨‍🍳
+                          </span>
+                        )}
                       </p>
                     </div>
                     <div className="text-right">

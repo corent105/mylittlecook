@@ -23,6 +23,7 @@ export default function PlanningPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [popupSelectedMealUsers, setPopupSelectedMealUsers] = useState<string[]>([]);
+  const [cookResponsibleId, setCookResponsibleId] = useState<string>('');
   
   const weekStart = getWeekStart(currentWeek);
   
@@ -151,6 +152,8 @@ export default function PlanningPage() {
     setSelectedSlot({ day, mealType });
     // Initialize popup meal users with current selection
     setPopupSelectedMealUsers(selectedMealUsers);
+    // Reset cook responsible
+    setCookResponsibleId('');
   };
 
   const displayedRecipes = searchQuery.length > 0 ? recipes : (allRecipes?.recipes || []);
@@ -173,6 +176,7 @@ export default function PlanningPage() {
       dayOfWeek: selectedSlot.day,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
       recipeId: recipe.id,
+      cookResponsibleId: cookResponsibleId || undefined,
     };
     
     console.log('Adding recipe to slot:', {
@@ -190,6 +194,7 @@ export default function PlanningPage() {
       setSelectedSlot(null);
       setSearchQuery('');
       setPopupSelectedMealUsers([]);
+      setCookResponsibleId('');
     } catch (error) {
       console.error('Error adding meal:', error);
       console.error('Mutation data that failed:', mutationData);
@@ -372,6 +377,11 @@ export default function PlanningPage() {
                                     <Users className="h-2.5 w-2.5 mr-0.5" />
                                     {meal.mealUserAssignments?.length || 0}
                                   </span>
+                                  {meal.cookResponsible && (
+                                    <span className="bg-yellow-100 px-1 py-0.5 rounded text-xs flex items-center">
+                                      👨‍🍳 {meal.cookResponsible.pseudo}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               
@@ -471,6 +481,11 @@ export default function PlanningPage() {
                                             <Users className="h-2 w-2 mr-0.5" />
                                             {meal.mealUserAssignments?.length || 0}
                                           </span>
+                                          {meal.cookResponsible && (
+                                            <span className="bg-yellow-100 px-1 py-0.5 rounded text-xs flex items-center">
+                                              👨‍🍳 {meal.cookResponsible.pseudo}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                       
@@ -533,6 +548,7 @@ export default function PlanningPage() {
             setSelectedSlot(null);
             setSearchQuery('');
             setPopupSelectedMealUsers([]);
+            setCookResponsibleId('');
           }
         }}>
           <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -569,6 +585,33 @@ export default function PlanningPage() {
                   <p className="text-xs text-red-500 mt-1">Veuillez sélectionner au moins une personne</p>
                 )}
               </div>
+
+              {/* Cook Responsible Selection */}
+              {popupSelectedMealUsers.length > 0 && (
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">Qui cuisine ? (optionnel)</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {mealUsers
+                      .filter(mealUser => popupSelectedMealUsers.includes(mealUser.id))
+                      .map(mealUser => (
+                        <Button
+                          key={mealUser.id}
+                          size="sm"
+                          variant={cookResponsibleId === mealUser.id ? "default" : "outline"}
+                          onClick={() => {
+                            setCookResponsibleId(cookResponsibleId === mealUser.id ? '' : mealUser.id);
+                          }}
+                          className={cookResponsibleId === mealUser.id ? "bg-orange-600 hover:bg-orange-700" : ""}
+                        >
+                          👨‍🍳 {mealUser.pseudo}
+                        </Button>
+                      ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    La personne responsable de cuisiner ce repas
+                  </p>
+                </div>
+              )}
 
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
