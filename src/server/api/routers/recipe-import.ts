@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
 import { RecipeExtractor } from "@/lib/recipe-extractor";
+import { RecipeCategoryType } from "@prisma/client";
 
 export const recipeImportRouter = createTRPCRouter({
   extractFromUrl: publicProcedure
@@ -33,9 +34,10 @@ export const recipeImportRouter = createTRPCRouter({
         notes: z.string().optional(),
         category: z.string().optional(),
       })).optional(),
+      types: z.array(z.nativeEnum(RecipeCategoryType)),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { sourceUrl, parsedIngredients, ...recipeData } = input;
+      const { sourceUrl, parsedIngredients, types, ...recipeData } = input;
       
       return ctx.db.$transaction(async (tx) => {
         // Create the recipe first
@@ -94,6 +96,16 @@ export const recipeImportRouter = createTRPCRouter({
           }
         }
 
+        // Create recipe types
+        if (types && types.length > 0) {
+          await tx.recipeType.createMany({
+            data: types.map(type => ({
+              recipeId: recipe.id,
+              type: type
+            }))
+          });
+        }
+
         // Return the complete recipe with ingredients
         return tx.recipe.findUnique({
           where: { id: recipe.id },
@@ -110,7 +122,8 @@ export const recipeImportRouter = createTRPCRouter({
               include: {
                 tag: true
               }
-            }
+            },
+            types: true
           }
         });
       });

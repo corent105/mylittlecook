@@ -7,6 +7,8 @@ import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
 import ReactMarkdown from 'react-markdown';
 import {useParams} from "next/navigation";
+import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
+import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
 
 
@@ -96,10 +98,26 @@ export default function RecipePage() {
               </div>
             </Card>
 
+            {/* Recipe Types */}
+            {recipe.types && recipe.types.length > 0 && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Types de recette</h3>
+                <div className="flex flex-wrap gap-2">
+                  {recipe.types.map((recipeType) => (
+                    <RecipeTypeBadge
+                      key={recipeType.id}
+                      type={recipeType.type as keyof typeof RECIPE_TYPES}
+                      size="md"
+                    />
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {/* Recipe Meta */}
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Informations</h3>
-              
+
               <div className="space-y-3">
                 {recipe.prepTime && (
                   <div className="flex items-center space-x-3">

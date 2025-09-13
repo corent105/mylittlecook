@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { ChefHat, Calendar, Users, Edit } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
+import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
+import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -169,6 +171,24 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
                 <h4 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-2">
                   {meal.recipe?.title || 'Recette supprimée'}
                 </h4>
+
+                {/* Recipe Types */}
+                {meal.recipe?.types && meal.recipe.types.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {meal.recipe.types.slice(0, 2).map((recipeType: any) => (
+                      <RecipeTypeBadge
+                        key={recipeType.id}
+                        type={recipeType.type as keyof typeof RECIPE_TYPES}
+                        size="sm"
+                      />
+                    ))}
+                    {meal.recipe.types.length > 2 && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                        +{meal.recipe.types.length - 2}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center space-x-1 text-xs">
                   {meal.recipe?.prepTime && (

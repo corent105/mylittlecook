@@ -9,6 +9,8 @@ import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
+import RecipeTypeSelector from "@/components/recipe/RecipeTypeSelector";
+import { RecipeCategoryType } from '@prisma/client';
 
 // Import MDEditor dynamically to avoid SSR issues
 const MDEditor = dynamic(
@@ -33,6 +35,7 @@ interface RecipeForm {
   cookTime: string;
   servings: string;
   ingredients: RecipeIngredient[];
+  types: string[];
 }
 
 export default function NewRecipePage() {
@@ -56,6 +59,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
     cookTime: '',
     servings: '',
     ingredients: [],
+    types: [],
   });
 
   const createRecipeMutation = api.recipe.create.useMutation({
@@ -70,7 +74,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!form.title.trim()) {
       alert('Le titre est obligatoire');
       return;
@@ -78,6 +82,11 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
 
     if (!form.content.trim()) {
       alert('Le contenu de la recette est obligatoire');
+      return;
+    }
+
+    if (form.types.length === 0) {
+      alert('Veuillez sélectionner au moins un type de recette');
       return;
     }
 
@@ -101,13 +110,14 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
         cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
         servings: form.servings ? parseInt(form.servings) : undefined,
         ingredients: validIngredients.length > 0 ? validIngredients : undefined,
+        types: form.types as RecipeCategoryType[],
       });
     } catch (error) {
       // Error handling is done in onError callback
     }
   };
 
-  const updateForm = (field: keyof RecipeForm, value: string | RecipeIngredient[]) => {
+  const updateForm = (field: keyof RecipeForm, value: string | RecipeIngredient[] | string[]) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -209,6 +219,22 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
                     />
                   </div>
                 </div>
+              </Card>
+
+              {/* Recipe Types */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">
+                  Types de recette <span className="text-red-500">*</span>
+                </h3>
+                <RecipeTypeSelector
+                  selectedTypes={form.types}
+                  onTypesChange={(types) => updateForm('types', types)}
+                />
+                {form.types.length === 0 && (
+                  <p className="text-sm text-red-500 mt-2">
+                    Veuillez sélectionner au moins un type de recette
+                  </p>
+                )}
               </Card>
 
               <Card className="p-6">

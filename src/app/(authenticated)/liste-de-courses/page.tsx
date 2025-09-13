@@ -8,6 +8,8 @@ import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft, Ch
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
+import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
 export default function ShoppingListPage() {
   const { data: session } = useSession();
@@ -118,7 +120,7 @@ export default function ShoppingListPage() {
     }
     acc[key].push(mealPlan.recipe);
     return acc;
-  }, {} as Record<string, Array<{ id: string; title: string }>>);
+  }, {} as Record<string, Array<any>>);
 
   const uniqueRecipes = Array.from(
     new Map(filteredMealPlans.filter(mp => mp.recipe).map(mp => [mp.recipe!.id, mp.recipe!])).values()
@@ -287,8 +289,28 @@ export default function ShoppingListPage() {
                       <div className="space-y-2">
                         {recipes.map((recipe) => (
                           <Link key={`${timeSlot}-${recipe.id}`} href={`/recettes/${recipe.id}`}>
-                            <div className="text-sm text-gray-600 hover:text-orange-600 hover:underline cursor-pointer">
-                              • {recipe.title}
+                            <div className="flex items-start space-x-2 p-2 hover:bg-orange-50 rounded transition-colors cursor-pointer">
+                              <div className="flex-1">
+                                <div className="text-sm text-gray-900 hover:text-orange-600 font-medium">
+                                  • {recipe.title}
+                                </div>
+                                {recipe.types && recipe.types.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {recipe.types.slice(0, 2).map((recipeType: any) => (
+                                      <RecipeTypeBadge
+                                        key={recipeType.id}
+                                        type={recipeType.type as keyof typeof RECIPE_TYPES}
+                                        size="sm"
+                                      />
+                                    ))}
+                                    {recipe.types.length > 2 && (
+                                      <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                                        +{recipe.types.length - 2}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </Link>
                         ))}

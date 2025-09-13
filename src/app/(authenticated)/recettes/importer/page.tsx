@@ -10,6 +10,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 import type { ExtractedRecipe } from '@/lib/recipe-extractor';
+import RecipeTypeSelector from "@/components/recipe/RecipeTypeSelector";
+import { RecipeCategoryType } from '@prisma/client';
 
 // Import MDEditor dynamically to avoid SSR issues
 const MDEditor = dynamic(
@@ -26,6 +28,7 @@ interface RecipeForm {
   cookTime: string;
   servings: string;
   sourceUrl: string;
+  types: string[];
 }
 
 export default function ImportRecipePage() {
@@ -50,6 +53,7 @@ export default function ImportRecipePage() {
     cookTime: '',
     servings: '',
     sourceUrl: '',
+    types: [],
   });
 
   // Extract recipe from URL
@@ -65,6 +69,7 @@ export default function ImportRecipePage() {
         cookTime: data.cookTime?.toString() || '',
         servings: data.servings?.toString() || '',
         sourceUrl: data.sourceUrl,
+        types: [],
       });
       
       // Set editable ingredients with unique IDs
@@ -116,6 +121,11 @@ export default function ImportRecipePage() {
       return;
     }
 
+    if (form.types.length === 0) {
+      alert('Veuillez sélectionner au moins un type de recette');
+      return;
+    }
+
     try {
       await createRecipeMutation.mutateAsync({
         title: form.title,
@@ -127,13 +137,14 @@ export default function ImportRecipePage() {
         servings: form.servings ? parseInt(form.servings) : undefined,
         sourceUrl: form.sourceUrl,
         parsedIngredients: editableIngredients.filter(ing => ing.name.trim() !== ''),
+        types: form.types as RecipeCategoryType[],
       });
     } catch (error) {
       // Error handling is done in onError callback
     }
   };
 
-  const updateForm = (field: keyof RecipeForm, value: string) => {
+  const updateForm = (field: keyof RecipeForm, value: string | string[]) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -322,6 +333,22 @@ export default function ImportRecipePage() {
                       </div>
                     </div>
 
+                    {/* Recipe Types */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Types de recette <span className="text-red-500">*</span>
+                      </label>
+                      <RecipeTypeSelector
+                        selectedTypes={form.types}
+                        onTypesChange={(types) => updateForm('types', types)}
+                      />
+                      {form.types.length === 0 && (
+                        <p className="text-sm text-red-500 mt-1">
+                          Veuillez sélectionner au moins un type de recette
+                        </p>
+                      )}
+                    </div>
+
                     {/* Extraction Summary */}
                     <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Résumé de l'extraction</h4>
@@ -492,6 +519,7 @@ export default function ImportRecipePage() {
                   cookTime: '',
                   servings: '',
                   sourceUrl: '',
+                  types: [],
                 });
               }}
             >

@@ -83,7 +83,7 @@ export const recipeRouter = createTRPCRouter({
         notes: z.string().optional(),
       })).optional(),
       tags: z.array(z.string()).optional(),
-      types: z.array(z.nativeEnum(RecipeCategoryType)).optional(),
+      types: z.array(z.nativeEnum(RecipeCategoryType)),
     }))
     .mutation(async ({ ctx, input }) => {
       const { ingredients, tags, types, ...recipeData } = input;
@@ -137,11 +137,11 @@ export const recipeRouter = createTRPCRouter({
               }
             }))
           } : undefined,
-          types: types ? {
+          types: {
             create: types.map(type => ({
               type: type
             }))
-          } : undefined,
+          },
         },
         include: {
           author: {
@@ -172,7 +172,7 @@ export const recipeRouter = createTRPCRouter({
       servings: z.number().positive().optional(),
       prepTime: z.number().positive().optional(),
       cookTime: z.number().positive().optional(),
-      types: z.array(z.nativeEnum(RecipeCategoryType)).optional(),
+      types: z.array(z.nativeEnum(RecipeCategoryType)),
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, types, ...updateData } = input;
@@ -181,12 +181,12 @@ export const recipeRouter = createTRPCRouter({
         where: { id },
         data: {
           ...updateData,
-          types: types ? {
+          types: {
             deleteMany: {},
             create: types.map(type => ({
               type: type
             }))
-          } : undefined,
+          },
         },
         include: {
           author: {

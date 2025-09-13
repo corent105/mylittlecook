@@ -106,6 +106,11 @@ export default function EditRecipePage() {
       return;
     }
 
+    if (form.types.length === 0) {
+      alert('Veuillez sélectionner au moins un type de recette');
+      return;
+    }
+
     try {
       await updateRecipeMutation.mutateAsync({
         id: params.id as string,
@@ -116,7 +121,7 @@ export default function EditRecipePage() {
         prepTime: form.prepTime ? parseInt(form.prepTime) : undefined,
         cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
         servings: form.servings ? parseInt(form.servings) : undefined,
-        types: form.types.length > 0 ? form.types as RecipeCategoryType[] : undefined,
+        types: form.types as RecipeCategoryType[],
       });
     } catch (error) {
       // Error handling is done in onError callback
@@ -251,11 +256,18 @@ export default function EditRecipePage() {
 
               {/* Recipe Types */}
               <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Types de recette</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  Types de recette <span className="text-red-500">*</span>
+                </h3>
                 <RecipeTypeSelector
                   selectedTypes={form.types}
                   onTypesChange={(types) => updateForm('types', types)}
                 />
+                {form.types.length === 0 && (
+                  <p className="text-sm text-red-500 mt-2">
+                    Veuillez sélectionner au moins un type de recette
+                  </p>
+                )}
               </Card>
 
               <Card className="p-6">

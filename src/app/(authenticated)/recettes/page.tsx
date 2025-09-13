@@ -9,6 +9,8 @@ import { ChefHat, Plus, Search, Edit, Trash2, Clock, Users, Download } from "luc
 import { api } from "@/components/providers/trpc-provider";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
+import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
 export default function RecipesPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -182,6 +184,24 @@ export default function RecipesPage() {
                           </div>
                         )}
                       </div>
+
+                      {/* Recipe Types */}
+                      {recipe.types && recipe.types.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {recipe.types.slice(0, 2).map((recipeType) => (
+                            <RecipeTypeBadge
+                              key={recipeType.id}
+                              type={recipeType.type as keyof typeof RECIPE_TYPES}
+                              size="sm"
+                            />
+                          ))}
+                          {recipe.types.length > 2 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                              +{recipe.types.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Recipe Tags */}
                       {recipe.tags && recipe.tags.length > 0 && (
