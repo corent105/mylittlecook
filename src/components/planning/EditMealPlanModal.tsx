@@ -99,8 +99,8 @@ export default function EditMealPlanModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col mx-4">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Edit className="h-5 w-5" />
             Modifier le repas
@@ -112,7 +112,7 @@ export default function EditMealPlanModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* Current Recipe */}
           {editSelectedRecipe && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">

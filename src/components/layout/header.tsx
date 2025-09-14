@@ -37,11 +37,14 @@ export function Header() {
       .toUpperCase()
     : 'U';
   return (
-    <header className="border-b bg-white">
+    <header className="border-b bg-white sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
           <ChefHat className="h-8 w-8 text-orange-600" />
-          <h1 className="text-2xl font-bold text-gray-900">My Little Cook</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+            <span className="hidden sm:inline">My Little Cook</span>
+            <span className="sm:hidden">MLC</span>
+          </h1>
         </Link>
         
         {/* Desktop Navigation */}
@@ -77,7 +80,7 @@ export function Header() {
                   </Avatar>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
+              <PopoverContent className="w-80 z-[60]" align="end">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <Avatar className="h-12 w-12">

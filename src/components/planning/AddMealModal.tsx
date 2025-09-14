@@ -91,14 +91,14 @@ export default function AddMealModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col mx-4">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             Ajouter une recette - {selectedSlot ? `${DAYS[selectedSlot.day]} ${selectedSlot.mealType}` : ''}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* Meal Users Selection */}
           <div className="p-3 bg-gray-50 rounded-lg">
             <h4 className="font-medium text-sm mb-2">Pour qui cette recette ?</h4>

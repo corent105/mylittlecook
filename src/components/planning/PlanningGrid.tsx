@@ -162,7 +162,7 @@ export default function PlanningGrid({
       {/* Mobile Scroll Layout */}
       <div className="md:hidden">
         <div className="overflow-x-auto">
-          <div className="flex gap-4 px-4 pb-4" style={{ width: 'max-content' }}>
+          <div className="flex gap-4 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
             {DAYS.map((day, dayIndex) => (
               <div key={dayIndex} className="flex-shrink-0">
                 <div className="text-center text-sm font-medium text-gray-700 mb-3 w-48">

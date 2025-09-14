@@ -106,10 +106,10 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
     // Process next week
     processMealsForWeek(nextWeekMealPlan, weekStarts.nextWeekStart);
 
-    // Sort by datetime and take first 6
+    // Sort by datetime and take first 3 (next meal slots only)
     return allMeals
       .sort((a, b) => a.mealDateTime - b.mealDateTime)
-      .slice(0, 6)
+      .slice(0, 3)
       .map((meal, index) => ({
         ...meal,
         isNext: index === 0
@@ -134,7 +134,81 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      {/* Mobile Layout - Horizontal scroll */}
+      <div className="block sm:hidden">
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+          {nextMeals.map((meal, index) => (
+            <div
+              key={meal.id}
+              className={`relative group cursor-pointer transition-all duration-200 flex-shrink-0 w-64 ${
+                index === 0 ? 'ring-2 ring-orange-200 bg-orange-50' : 'hover:shadow-md'
+              } rounded-lg border border-gray-200 p-3`}
+              onClick={() => onMealClick?.(meal)}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {meal.recipe?.imageUrl ? (
+                    <img
+                      src={meal.recipe.imageUrl}
+                      alt={meal.recipe.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ChefHat className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-medium text-gray-500">
+                      {meal.date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })} • {meal.mealTypeLabel}
+                    </p>
+                    {index === 0 && (
+                      <span className="text-xs text-orange-600 font-medium">
+                        À venir
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 className="font-medium text-gray-900 text-sm line-clamp-1 mb-1">
+                    {meal.recipe?.title || 'Recette supprimée'}
+                  </h4>
+
+                  {/* Recipe Types - Only first one on mobile */}
+                  {meal.recipe?.types && meal.recipe.types.length > 0 && (
+                    <div className="flex gap-1 mb-1">
+                      <RecipeTypeBadge
+                        type={meal.recipe.types[0].type as keyof typeof RECIPE_TYPES}
+                        size="sm"
+                      />
+                      {meal.recipe.types.length > 1 && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                          +{meal.recipe.types.length - 1}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-1 text-xs">
+                    {meal.recipe?.prepTime && (
+                      <span className="bg-orange-100 text-orange-700 px-1 py-0.5 rounded text-xs">
+                        {meal.recipe.prepTime}min
+                      </span>
+                    )}
+                    <span className="bg-green-100 text-green-700 px-1 py-0.5 rounded flex items-center text-xs">
+                      <Users className="h-2 w-2 mr-0.5" />
+                      {meal.mealUserAssignments?.length || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {nextMeals.map((meal, index) => (
           <div
             key={meal.id}
