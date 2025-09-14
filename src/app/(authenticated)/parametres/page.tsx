@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
 import { Settings, Users, Save } from "lucide-react";
 import { api } from "@/trpc/react";
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
 
   // Get current user settings
   const { data: userSettings, isLoading: settingsLoading } = api.userSettings.get.useQuery();
@@ -35,10 +37,18 @@ export default function SettingsPage() {
         defaultPeopleCount,
       });
       
-      alert('Paramètres sauvegardés avec succès !');
+      showAlert(
+        'Paramètres sauvegardés',
+        'Vos paramètres ont été sauvegardés avec succès !',
+        'success'
+      );
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Erreur lors de la sauvegarde des paramètres');
+      showAlert(
+        'Erreur de sauvegarde',
+        'Impossible de sauvegarder les paramètres. Veuillez réessayer.',
+        'error'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -155,6 +165,7 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+      <AlertDialogComponent />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChefHat, Plus, Search, Edit, Trash2, Clock, Users, Download } from "lucide-react";
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 import { api } from "@/components/providers/trpc-provider";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -16,6 +17,7 @@ export default function RecipesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('my-recipes');
   const { data: session } = useSession();
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
 
   const { data: myRecipes, isLoading: isLoadingMyRecipes, refetch: refetchMyRecipes } = api.recipe.getMyRecipes.useQuery({
     limit: 50,
@@ -52,13 +54,22 @@ export default function RecipesPage() {
   const isLoading = isLoadingMyRecipes || isLoadingOthersRecipes;
 
   const handleDeleteRecipe = async (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette recette ?')) {
-      try {
-        await deleteRecipeMutation.mutateAsync({ id });
-      } catch (error) {
-        console.error('Error deleting recipe:', error);
+    showAlert(
+      'Supprimer la recette',
+      'Êtes-vous sûr de vouloir supprimer cette recette ?',
+      'warning',
+      {
+        confirmText: 'Supprimer',
+        cancelText: 'Annuler',
+        onConfirm: async () => {
+          try {
+            await deleteRecipeMutation.mutateAsync({ id });
+          } catch (error) {
+            console.error('Error deleting recipe:', error);
+          }
+        }
       }
-    }
+    );
   };
 
   return (
@@ -280,6 +291,7 @@ export default function RecipesPage() {
           </>
         )}
       </div>
+      <AlertDialogComponent />
     </div>
   );
 }

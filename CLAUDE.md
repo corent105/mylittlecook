@@ -74,3 +74,8 @@ Focus on core functionality:
 - Basic collaboration features
 - Shopping list generation
 - API recipe search integration
+
+## Rules
+- pour le build : pnpm build
+- n'utilise pas d'alert mais des dialog
+- 

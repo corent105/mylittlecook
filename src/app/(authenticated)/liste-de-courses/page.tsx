@@ -10,9 +10,11 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 export default function ShoppingListPage() {
   const { data: session } = useSession();
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
@@ -177,7 +179,11 @@ export default function ShoppingListPage() {
     } else {
       // Fallback to clipboard
       await navigator.clipboard.writeText(content);
-      alert('Liste copiée dans le presse-papiers!');
+      showAlert(
+        'Liste copiée',
+        'La liste de courses a été copiée dans le presse-papiers !',
+        'success'
+      );
     }
   };
 
@@ -453,6 +459,7 @@ export default function ShoppingListPage() {
           </>
         )}
       </div>
+      <AlertDialogComponent />
     </div>
   );
 }

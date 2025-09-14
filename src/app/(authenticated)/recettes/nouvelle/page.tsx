@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 import RecipeTypeSelector from "@/components/recipe/RecipeTypeSelector";
 import { RecipeCategoryType } from '@prisma/client';
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 // Import MDEditor dynamically to avoid SSR issues
 const MDEditor = dynamic(
@@ -40,6 +41,7 @@ interface RecipeForm {
 
 export default function NewRecipePage() {
   const router = useRouter();
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [form, setForm] = useState<RecipeForm>({
     title: '',
     description: '',
@@ -68,7 +70,11 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
     },
     onError: (error) => {
       console.error('Error creating recipe:', error);
-      alert('Erreur lors de la création de la recette');
+      showAlert(
+        'Erreur de création',
+        'Erreur lors de la création de la recette. Veuillez réessayer.',
+        'error'
+      );
     },
   });
 
@@ -76,17 +82,29 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
     e.preventDefault();
 
     if (!form.title.trim()) {
-      alert('Le titre est obligatoire');
+      showAlert(
+        'Titre manquant',
+        'Le titre est obligatoire pour créer une recette.',
+        'warning'
+      );
       return;
     }
 
     if (!form.content.trim()) {
-      alert('Le contenu de la recette est obligatoire');
+      showAlert(
+        'Contenu manquant',
+        'Le contenu de la recette est obligatoire.',
+        'warning'
+      );
       return;
     }
 
     if (form.types.length === 0) {
-      alert('Veuillez sélectionner au moins un type de recette');
+      showAlert(
+        'Type de recette requis',
+        'Veuillez sélectionner au moins un type de recette.',
+        'warning'
+      );
       return;
     }
 
@@ -425,6 +443,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
           </div>
         </form>
       </div>
+      <AlertDialogComponent />
     </div>
   );
 }

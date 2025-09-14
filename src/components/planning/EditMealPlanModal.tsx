@@ -10,6 +10,7 @@ import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES, getCompatibleRecipeTypes } from '@/lib/constants/recipe-types';
 import { RecipeCategoryType } from '@prisma/client';
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
@@ -44,6 +45,7 @@ export default function EditMealPlanModal({
   onDelete,
   weekStart
 }: EditMealPlanModalProps) {
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<RecipeCategoryType[]>([]);
 
@@ -358,11 +360,20 @@ export default function EditMealPlanModal({
               variant="outline"
               className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
               onClick={() => {
-                if (confirm('Êtes-vous sûr de vouloir supprimer ce repas du planning ?')) {
-                  if (editingMealPlan) {
-                    onDelete(editingMealPlan.id);
+                showAlert(
+                  'Supprimer le repas',
+                  'Êtes-vous sûr de vouloir supprimer ce repas du planning ?',
+                  'warning',
+                  {
+                    confirmText: 'Supprimer',
+                    cancelText: 'Annuler',
+                    onConfirm: () => {
+                      if (editingMealPlan) {
+                        onDelete(editingMealPlan.id);
+                      }
+                    }
                   }
-                }
+                );
               }}
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -384,6 +395,7 @@ export default function EditMealPlanModal({
           </div>
         </div>
       </DialogContent>
+      <AlertDialogComponent />
     </Dialog>
   );
 }

@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic';
 import type { ExtractedRecipe } from '@/lib/recipe-extractor';
 import RecipeTypeSelector from "@/components/recipe/RecipeTypeSelector";
 import { RecipeCategoryType } from '@prisma/client';
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 // Import MDEditor dynamically to avoid SSR issues
 const MDEditor = dynamic(
@@ -33,6 +34,7 @@ interface RecipeForm {
 
 export default function ImportRecipePage() {
   const router = useRouter();
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [url, setUrl] = useState('');
   const [extractedRecipe, setExtractedRecipe] = useState<ExtractedRecipe | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -82,7 +84,11 @@ export default function ImportRecipePage() {
     },
     onError: (error) => {
       console.error('Extraction error:', error);
-      alert(`Erreur d'extraction: ${error.message}`);
+      showAlert(
+        'Erreur d\'extraction',
+        `Impossible d'extraire la recette depuis cette URL: ${error.message}`,
+        'error'
+      );
     },
   });
 
@@ -93,13 +99,21 @@ export default function ImportRecipePage() {
     },
     onError: (error) => {
       console.error('Creation error:', error);
-      alert(`Erreur de création: ${error.message}`);
+      showAlert(
+        'Erreur de création',
+        `Impossible de créer la recette: ${error.message}`,
+        'error'
+      );
     },
   });
 
   const handleExtract = async () => {
     if (!url.trim()) {
-      alert('Veuillez entrer une URL');
+      showAlert(
+        'URL manquante',
+        'Veuillez entrer une URL pour extraire la recette.',
+        'warning'
+      );
       return;
     }
 
@@ -112,17 +126,29 @@ export default function ImportRecipePage() {
 
   const handleSaveRecipe = async () => {
     if (!form.title.trim()) {
-      alert('Le titre est obligatoire');
+      showAlert(
+        'Titre manquant',
+        'Le titre est obligatoire pour sauvegarder la recette.',
+        'warning'
+      );
       return;
     }
 
     if (!form.content.trim()) {
-      alert('Le contenu de la recette est obligatoire');
+      showAlert(
+        'Contenu manquant',
+        'Le contenu de la recette est obligatoire.',
+        'warning'
+      );
       return;
     }
 
     if (form.types.length === 0) {
-      alert('Veuillez sélectionner au moins un type de recette');
+      showAlert(
+        'Type de recette requis',
+        'Veuillez sélectionner au moins un type de recette.',
+        'warning'
+      );
       return;
     }
 
@@ -542,6 +568,7 @@ export default function ImportRecipePage() {
           </div>
         )}
       </div>
+      <AlertDialogComponent />
     </div>
   );
 }

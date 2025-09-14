@@ -17,6 +17,7 @@ import EditMealPlanModal from "@/components/planning/EditMealPlanModal";
 import AddMealModal from "@/components/planning/AddMealModal";
 import MealUserSelection from "@/components/planning/MealUserSelection";
 import PlanningGrid from "@/components/planning/PlanningGrid";
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
@@ -26,6 +27,7 @@ type MealType = typeof MEAL_TYPES[number];
 
 export default function PlanningPage() {
   const { data: session } = useSession();
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{day: number, mealType: MealType} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,7 +197,11 @@ export default function PlanningPage() {
     } catch (error) {
       console.error('Error adding meal:', error);
       console.error('Mutation data that failed:', mutationData);
-      alert('Erreur lors de l\'ajout de la recette au planning');
+      showAlert(
+        'Erreur d\'ajout',
+        'Impossible d\'ajouter la recette au planning. Veuillez réessayer.',
+        'error'
+      );
     }
   };
 
@@ -250,7 +256,11 @@ export default function PlanningPage() {
       setSearchQuery('');
     } catch (error) {
       console.error('Error updating meal plan:', error);
-      alert('Erreur lors de la mise à jour du meal plan');
+      showAlert(
+        'Erreur de modification',
+        'Impossible de mettre à jour le meal plan. Veuillez réessayer.',
+        'error'
+      );
     }
   };
 
@@ -361,6 +371,7 @@ export default function PlanningPage() {
           onDelete={removeMealFromSlot}
           weekStart={weekStart}
         />
+        <AlertDialogComponent />
       </div>
     </div>
   );

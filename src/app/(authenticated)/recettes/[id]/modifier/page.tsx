@@ -11,6 +11,7 @@ import {useParams, useRouter} from "next/navigation";
 import dynamic from 'next/dynamic';
 import RecipeTypeSelector from "@/components/recipe/RecipeTypeSelector";
 import { RecipeCategoryType } from '@prisma/client';
+import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
 // Import MDEditor dynamically to avoid SSR issues
 const MDEditor = dynamic(
@@ -41,6 +42,7 @@ interface RecipeForm {
 export default function EditRecipePage() {
   const params = useParams()
   const router = useRouter();
+  const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [form, setForm] = useState<RecipeForm>({
     title: '',
     description: '',
@@ -89,7 +91,11 @@ export default function EditRecipePage() {
     },
     onError: (error) => {
       console.error('Error updating recipe:', error);
-      alert('Erreur lors de la modification de la recette');
+      showAlert(
+        'Erreur de modification',
+        'Erreur lors de la modification de la recette. Veuillez réessayer.',
+        'error'
+      );
     },
   });
 
@@ -97,17 +103,29 @@ export default function EditRecipePage() {
     e.preventDefault();
 
     if (!form.title.trim()) {
-      alert('Le titre est obligatoire');
+      showAlert(
+        'Titre manquant',
+        'Le titre est obligatoire pour modifier une recette.',
+        'warning'
+      );
       return;
     }
 
     if (!form.content.trim()) {
-      alert('Le contenu de la recette est obligatoire');
+      showAlert(
+        'Contenu manquant',
+        'Le contenu de la recette est obligatoire.',
+        'warning'
+      );
       return;
     }
 
     if (form.types.length === 0) {
-      alert('Veuillez sélectionner au moins un type de recette');
+      showAlert(
+        'Type de recette requis',
+        'Veuillez sélectionner au moins un type de recette.',
+        'warning'
+      );
       return;
     }
 
@@ -458,6 +476,7 @@ export default function EditRecipePage() {
           </div>
         </form>
       </div>
+      <AlertDialogComponent />
     </div>
   );
 }
