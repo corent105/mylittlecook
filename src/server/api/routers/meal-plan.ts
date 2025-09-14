@@ -45,6 +45,12 @@ export const mealPlanRouter = createTRPCRouter({
                 include: {
                   ingredient: true
                 }
+              },
+              types: {
+                select: {
+                  id: true,
+                  type: true
+                }
               }
             }
           },
@@ -151,6 +157,12 @@ export const mealPlanRouter = createTRPCRouter({
               ingredients: {
                 include: {
                   ingredient: true
+                }
+              },
+              types: {
+                select: {
+                  id: true,
+                  type: true
                 }
               }
             }
@@ -492,6 +504,12 @@ export const mealPlanRouter = createTRPCRouter({
               ingredients: {
                 include: {
                   ingredient: true
+                }
+              },
+              types: {
+                select: {
+                  id: true,
+                  type: true
                 }
               }
             }

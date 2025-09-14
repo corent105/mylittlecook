@@ -21,6 +21,7 @@ import EditMealPlanModal from "@/components/planning/EditMealPlanModal";
 import AddMealModal from "@/components/planning/AddMealModal";
 import PlanningGrid from "@/components/planning/PlanningGrid";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
+import { RECIPE_TYPE_OPTIONS } from "@/lib/constants/recipe-types";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
@@ -42,7 +43,7 @@ export default function PlanningPage() {
 
   // Filters
   const [filterMealUsers, setFilterMealUsers] = useState<string[]>([]);
-  const [filterMealTypes, setFilterMealTypes] = useState<string[]>([]);
+  const [filterRecipeTypes, setFilterRecipeTypes] = useState<string[]>([]);
   const [filterCookResponsible, setFilterCookResponsible] = useState<string>('');
   
   const weekStart = getWeekStart(currentWeek);
@@ -81,9 +82,12 @@ export default function PlanningPage() {
       if (!hasFilteredUser) return false;
     }
 
-    // Filter by meal type
-    if (filterMealTypes.length > 0) {
-      if (!filterMealTypes.includes(meal.mealType)) return false;
+    // Filter by recipe types (check if any of the recipe's types match the filter)
+    if (filterRecipeTypes.length > 0) {
+      if (!meal.recipe?.types || meal.recipe.types.length === 0) return false;
+      const recipeTypeValues = meal.recipe.types.map((type: any) => type.type);
+      const hasFilteredType = recipeTypeValues.some((type: string) => filterRecipeTypes.includes(type));
+      if (!hasFilteredType) return false;
     }
 
     // Filter by cook responsible
@@ -368,32 +372,29 @@ export default function PlanningPage() {
                 </div>
               </div>
 
-              {/* Meal Types Filter */}
+              {/* Recipe Types Filter */}
               <div>
                 <div className="flex items-center mb-2">
                   <Utensils className="h-4 w-4 text-gray-500 mr-2" />
-                  <label className="text-sm font-medium">Type de repas</label>
+                  <label className="text-sm font-medium">Type de recette</label>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    { key: 'BREAKFAST', label: 'Petit-déjeuner' },
-                    { key: 'LUNCH', label: 'Déjeuner' },
-                    { key: 'DINNER', label: 'Dîner' }
-                  ].map(mealType => (
+                  {RECIPE_TYPE_OPTIONS.map(recipeType => (
                     <Button
-                      key={mealType.key}
+                      key={recipeType.value}
                       size="sm"
-                      variant={filterMealTypes.includes(mealType.key) ? "default" : "outline"}
+                      variant={filterRecipeTypes.includes(recipeType.value) ? "default" : "outline"}
                       onClick={() => {
-                        const isIncluded = filterMealTypes.includes(mealType.key);
+                        const isIncluded = filterRecipeTypes.includes(recipeType.value);
                         const newTypes = isIncluded
-                          ? filterMealTypes.filter(type => type !== mealType.key)
-                          : [...filterMealTypes, mealType.key];
-                        setFilterMealTypes(newTypes);
+                          ? filterRecipeTypes.filter(type => type !== recipeType.value)
+                          : [...filterRecipeTypes, recipeType.value];
+                        setFilterRecipeTypes(newTypes);
                       }}
-                      className={filterMealTypes.includes(mealType.key) ? "bg-orange-600 hover:bg-orange-700" : ""}
+                      className={filterRecipeTypes.includes(recipeType.value) ? "bg-orange-600 hover:bg-orange-700" : ""}
                     >
-                      {mealType.label}
+                      <span className="mr-1">{recipeType.emoji}</span>
+                      {recipeType.label}
                     </Button>
                   ))}
                 </div>
@@ -432,14 +433,14 @@ export default function PlanningPage() {
             </div>
 
             {/* Reset Filters */}
-            {(filterMealUsers.length !== mealUsers.length || filterMealTypes.length > 0 || filterCookResponsible !== '') && (
+            {(filterMealUsers.length !== mealUsers.length || filterRecipeTypes.length > 0 || filterCookResponsible !== '') && (
               <div className="mt-4 pt-4 border-t">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
                     setFilterMealUsers(mealUsers.map(mu => mu.id));
-                    setFilterMealTypes([]);
+                    setFilterRecipeTypes([]);
                     setFilterCookResponsible('');
                   }}
                   className="text-gray-600 hover:text-gray-800"
