@@ -189,48 +189,83 @@ export default function ShoppingListPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-7xl">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
+        <div className="mb-6 sm:mb-8">
+          {/* Mobile Layout */}
+          <div className="md:hidden space-y-4">
+            {/* Back Button */}
             <Link href="/planning">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="mb-3">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Retour au planning
               </Button>
             </Link>
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Liste de Courses</h2>
-              <div className="flex items-center text-gray-600">
+
+            {/* Title and Date */}
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Liste de Courses</h2>
+              <div className="flex items-center justify-center text-gray-600">
                 <Calendar className="h-4 w-4 mr-2" />
-                <span>Semaine du {formatWeekRange(weekStart)}</span>
+                <span className="text-sm">Semaine du {formatWeekRange(weekStart)}</span>
               </div>
             </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={shareList} className="flex-1">
+                <Share2 className="h-4 w-4 mr-2" />
+                Partager
+              </Button>
+              <Button variant="outline" onClick={exportToText} className="flex-1">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" onClick={shareList}>
-              <Share2 className="h-4 w-4 mr-2" />
-              Partager
-            </Button>
-            <Button variant="outline" onClick={exportToText}>
-              <Download className="h-4 w-4 mr-2" />
-              Télécharger
-            </Button>
+
+          {/* Desktop Layout */}
+          <div className="hidden md:flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link href="/planning">
+                <Button variant="outline" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour au planning
+                </Button>
+              </Link>
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Liste de Courses</h2>
+                <div className="flex items-center text-gray-600">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span>Semaine du {formatWeekRange(weekStart)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Button variant="outline" onClick={shareList}>
+                <Share2 className="h-4 w-4 mr-2" />
+                Partager
+              </Button>
+              <Button variant="outline" onClick={exportToText}>
+                <Download className="h-4 w-4 mr-2" />
+                Télécharger
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Filter Section */}
         {availableCooks.length > 0 && (
-          <Card className="mb-8 p-4">
-            <div className="flex items-center justify-between">
+          <Card className="mb-6 sm:mb-8 p-4">
+            <div className="space-y-4 md:space-y-0 md:flex md:items-center md:justify-between">
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">Filtrer par responsable de cuisine</h3>
                 <p className="text-sm text-gray-600">
                   Afficher les recettes et ingrédients pour un cuisinier spécifique ou pour tous
                 </p>
               </div>
-              <div className="w-48">
+              <div className="w-full md:w-48">
                 <Select value={cookFilter} onValueChange={setCookFilter}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un filtre" />
@@ -253,9 +288,9 @@ export default function ShoppingListPage() {
 
         {/* Loading State */}
         {isLoading && (
-          <Card className="p-8">
+          <Card className="p-6 sm:p-8">
             <div className="animate-pulse space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 sm:w-1/4"></div>
               <div className="space-y-2">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="h-3 bg-gray-200 rounded"></div>
@@ -267,8 +302,8 @@ export default function ShoppingListPage() {
 
         {/* Recipes Summary */}
         {!isLoading && uniqueRecipes.length > 0 && (
-          <Card className="mb-8">
-            <div className="p-6">
+          <Card className="mb-6 sm:mb-8">
+            <div className="p-4 sm:p-6">
               <Button
                 variant="ghost"
                 className="w-full flex items-center justify-between p-0 h-auto text-left"
@@ -276,7 +311,7 @@ export default function ShoppingListPage() {
               >
                 <div className="flex items-center space-x-2">
                   <ChefHat className="h-5 w-5 text-orange-600" />
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-gray-900 text-sm sm:text-base">
                     {uniqueRecipes.length} recette{uniqueRecipes.length > 1 ? 's' : ''} cette semaine
                   </span>
                 </div>
@@ -288,35 +323,33 @@ export default function ShoppingListPage() {
               </Button>
               
               {showRecipes && (
-                <div className="mt-6 space-y-4">
+                <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
                   {Object.entries(groupedRecipes).map(([timeSlot, recipes]) => (
-                    <div key={timeSlot} className="border-l-2 border-orange-200 pl-4">
+                    <div key={timeSlot} className="border-l-2 border-orange-200 pl-3 sm:pl-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">{timeSlot}</h4>
                       <div className="space-y-2">
                         {recipes.map((recipe) => (
                           <Link key={`${timeSlot}-${recipe.id}`} href={`/recettes/${recipe.id}`}>
-                            <div className="flex items-start space-x-2 p-2 hover:bg-orange-50 rounded transition-colors cursor-pointer">
-                              <div className="flex-1">
-                                <div className="text-sm text-gray-900 hover:text-orange-600 font-medium">
-                                  • {recipe.title}
-                                </div>
-                                {recipe.types && recipe.types.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {recipe.types.slice(0, 2).map((recipeType: any) => (
-                                      <RecipeTypeBadge
-                                        key={recipeType.id}
-                                        type={recipeType.type as keyof typeof RECIPE_TYPES}
-                                        size="sm"
-                                      />
-                                    ))}
-                                    {recipe.types.length > 2 && (
-                                      <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
-                                        +{recipe.types.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                            <div className="p-2 hover:bg-orange-50 rounded transition-colors cursor-pointer">
+                              <div className="text-sm text-gray-900 hover:text-orange-600 font-medium mb-1">
+                                • {recipe.title}
                               </div>
+                              {recipe.types && recipe.types.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {recipe.types.slice(0, 2).map((recipeType: any) => (
+                                    <RecipeTypeBadge
+                                      key={recipeType.id}
+                                      type={recipeType.type as keyof typeof RECIPE_TYPES}
+                                      size="sm"
+                                    />
+                                  ))}
+                                  {recipe.types.length > 2 && (
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
+                                      +{recipe.types.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </Link>
                         ))}
@@ -350,28 +383,28 @@ export default function ShoppingListPage() {
             ) : (
               <div className="space-y-6">
                 {/* Summary Card */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
+                <Card className="p-4 sm:p-6">
+                  <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                         Résumé de la liste
                         {cookFilter !== 'all' && (
-                          <span className="text-sm font-normal text-orange-600 ml-2">
+                          <span className="block sm:inline text-sm font-normal text-orange-600 sm:ml-2">
                             (Filtré par {availableCooks.find(c => c.id === cookFilter)?.pseudo})
                           </span>
                         )}
                       </h3>
-                      <p className="text-gray-600">
+                      <p className="text-sm sm:text-base text-gray-600">
                         {shoppingList.length} ingrédients à acheter
                         {cookFilter !== 'all' && availableCooks.length > 0 && (
-                          <span className="text-sm text-orange-600 ml-1">
+                          <span className="block sm:inline text-sm text-orange-600 sm:ml-1">
                             - {availableCooks.find(c => c.id === cookFilter)?.pseudo} 👨‍🍳
                           </span>
                         )}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-center sm:text-right">
+                      <div className="text-xl sm:text-2xl font-bold text-orange-600">
                         {checkedItems.size}/{shoppingList.length}
                       </div>
                       <div className="text-sm text-gray-600">complétés</div>
@@ -381,21 +414,21 @@ export default function ShoppingListPage() {
 
                 {/* Ingredients by Category */}
                 {Object.entries(groupedIngredients).map(([category, ingredients]) => (
-                  <Card key={category} className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Card key={category} className="p-4 sm:p-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
                       <div className="w-3 h-3 bg-orange-600 rounded-full mr-2"></div>
                       {category}
                     </h3>
-                    
-                    <div className="space-y-3">
+
+                    <div className="space-y-2 sm:space-y-3">
                       {ingredients.map((item) => {
                         const isChecked = checkedItems.has(item.ingredient.id);
                         const notes = item.notes.length > 0 ? ` (${item.notes.join(', ')})` : '';
-                        
+
                         return (
                           <div
                             key={item.ingredient.id}
-                            className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-colors cursor-pointer ${
+                            className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-colors cursor-pointer active:scale-95 ${
                               isChecked
                                 ? 'bg-green-50 border-green-200'
                                 : 'bg-white border-gray-200 hover:border-gray-300'
@@ -403,7 +436,7 @@ export default function ShoppingListPage() {
                             onClick={() => toggleItem(item.ingredient.id)}
                           >
                             <div
-                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                                 isChecked
                                   ? 'bg-green-600 border-green-600'
                                   : 'border-gray-300 hover:border-green-400'
@@ -413,18 +446,18 @@ export default function ShoppingListPage() {
                                 <Check className="h-3 w-3 text-white" />
                               )}
                             </div>
-                            
-                            <div className="flex-1">
-                              <div className={`font-medium transition-all ${
-                                isChecked 
-                                  ? 'text-green-800 line-through' 
+
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-medium transition-all text-sm sm:text-base ${
+                                isChecked
+                                  ? 'text-green-800 line-through'
                                   : 'text-gray-900'
                               }`}>
                                 {item.ingredient.name}
                               </div>
-                              <div className={`text-sm transition-all ${
-                                isChecked 
-                                  ? 'text-green-600' 
+                              <div className={`text-xs sm:text-sm transition-all ${
+                                isChecked
+                                  ? 'text-green-600'
                                   : 'text-gray-600'
                               }`}>
                                 {item.totalQuantity} {item.ingredient.unit}{notes}
@@ -438,16 +471,16 @@ export default function ShoppingListPage() {
                 ))}
 
                 {/* Progress Bar */}
-                <Card className="p-6">
+                <Card className="p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700">Progression</span>
                     <span className="text-sm font-medium text-gray-700">
                       {Math.round((checkedItems.size / shoppingList.length) * 100)}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
                     <div
-                      className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-orange-600 h-2 sm:h-3 rounded-full transition-all duration-300"
                       style={{
                         width: `${(checkedItems.size / shoppingList.length) * 100}%`
                       }}
