@@ -98,7 +98,7 @@ export default function PlanningGrid({
   const renderSlotContent = (meals: any[], dayIndex: number, mealType: MealType, isMobile = false) => {
     if (meals.length > 0) {
       return (
-        <div className={`space-y-${isMobile ? '1.5' : '2'} h-full`}>
+        <div className={`${isMobile ? 'space-y-1' : 'space-y-2'}`}>
           {meals.map((meal) => renderMealCard(meal, isMobile))}
 
           <div className={`flex items-center justify-center py-1 text-gray-400 hover:text-orange-500 transition-colors border-t border-dashed border-orange-200`}>
@@ -112,7 +112,7 @@ export default function PlanningGrid({
     }
 
     return (
-      <div className="flex items-center justify-center h-full text-gray-400 hover:text-orange-500 transition-colors">
+      <div className="flex items-center justify-center min-h-20 text-gray-400 hover:text-orange-500 transition-colors">
         <div className="text-center">
           <Plus className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} mx-auto mb-1`} />
           <div className="text-xs">Ajouter</div>
@@ -159,38 +159,39 @@ export default function PlanningGrid({
         ))}
       </div>
 
-      {/* Mobile Scroll Layout */}
+      {/* Mobile Grid Layout */}
       <div className="md:hidden">
         <div className="overflow-x-auto">
-          <div className="flex gap-4 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
+          <div className="grid grid-cols-7 gap-3 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
+            {/* Header Row */}
             {DAYS.map((day, dayIndex) => (
-              <div key={dayIndex} className="flex-shrink-0">
-                <div className="text-center text-sm font-medium text-gray-700 mb-3 w-48">
-                  {day}
-                </div>
-                <div className="space-y-3 w-48">
-                  {MEAL_TYPES.map((mealType) => {
-                    const meals = getMealsForSlot(dayIndex, mealType);
-                    return (
-                      <div key={`${dayIndex}-${mealType}`}>
-                        <div className="text-xs font-medium text-gray-600 mb-1 px-1">
-                          {mealType}
-                        </div>
-                        <Card
-                          className={`min-h-28 p-2.5 cursor-pointer hover:shadow-md transition-all duration-200 ${
-                            meals.length > 0
-                              ? 'border-solid border-orange-200 bg-orange-50/50'
-                              : 'border-dashed border-gray-300 hover:border-orange-300'
-                          }`}
-                          onClick={() => onSlotClick(dayIndex, mealType)}
-                        >
-                          {renderSlotContent(meals, dayIndex, mealType, true)}
-                        </Card>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div key={`header-${dayIndex}`} className="text-center text-sm font-medium text-gray-700 mb-3 w-48">
+                {day}
               </div>
+            ))}
+
+            {/* Meal Type Rows */}
+            {MEAL_TYPES.map((mealType) => (
+              DAYS.map((_, dayIndex) => {
+                const meals = getMealsForSlot(dayIndex, mealType);
+                return (
+                  <div key={`${dayIndex}-${mealType}`} className="w-48 py-2">
+                    <div className="text-xs font-medium text-gray-600 mb-1 px-1 ">
+                      {mealType}
+                    </div>
+                    <Card
+                      className={`p-2.5 cursor-pointer hover:shadow-md transition-all duration-200 h-full ${
+                        meals.length > 0
+                          ? 'border-solid border-orange-200 bg-orange-50/50'
+                          : 'border-dashed border-gray-300 hover:border-orange-300'
+                      }`}
+                      onClick={() => onSlotClick(dayIndex, mealType)}
+                    >
+                      {renderSlotContent(meals, dayIndex, mealType, true)}
+                    </Card>
+                  </div>
+                );
+              })
             ))}
           </div>
         </div>
