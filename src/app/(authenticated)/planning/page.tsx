@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import {
   Calendar,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Filter,
+  Users,
+  ChefHat,
+  Utensils
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
@@ -15,7 +19,6 @@ import Link from "next/link";
 import NextMeals from "@/components/NextMeals";
 import EditMealPlanModal from "@/components/planning/EditMealPlanModal";
 import AddMealModal from "@/components/planning/AddMealModal";
-import MealUserSelection from "@/components/planning/MealUserSelection";
 import PlanningGrid from "@/components/planning/PlanningGrid";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
@@ -36,6 +39,11 @@ export default function PlanningPage() {
   const [cookResponsibleId, setCookResponsibleId] = useState<string>('');
   const [editingMealPlan, setEditingMealPlan] = useState<any | null>(null);
   const [editSelectedRecipe, setEditSelectedRecipe] = useState<any | null>(null);
+
+  // Filters
+  const [filterMealUsers, setFilterMealUsers] = useState<string[]>([]);
+  const [filterMealTypes, setFilterMealTypes] = useState<string[]>([]);
+  const [filterCookResponsible, setFilterCookResponsible] = useState<string>('');
   
   const weekStart = getWeekStart(currentWeek);
   
@@ -52,15 +60,38 @@ export default function PlanningPage() {
     if (mealUsers.length > 0 && selectedMealUsers.length === 0) {
       const allIds = mealUsers.map(mu => mu.id);
       setSelectedMealUsers(allIds);
+      setFilterMealUsers(allIds); // Initialize filters with all users
     }
   }, [mealUsers, selectedMealUsers.length]);
-  
-  // tRPC queries - enable query once we have meal users or session
-  const { data: mealPlan = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
-    mealUserIds: selectedMealUsers,
+
+  // tRPC queries - get all meal plans for all users
+  const { data: allMealPlans = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
+    mealUserIds: mealUsers.map(mu => mu.id), // Get all meal plans
     weekStart,
   }, {
-    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+    enabled: session?.user?.id !== undefined && mealUsers.length > 0
+  });
+
+  // Filter meal plans based on current filters
+  const mealPlan = allMealPlans.filter(meal => {
+    // Filter by meal users (check if any of the meal's users are in the filter)
+    if (filterMealUsers.length > 0) {
+      const mealUserIds = meal.mealUserAssignments?.map((assignment: any) => assignment.mealUserId) || [];
+      const hasFilteredUser = mealUserIds.some((userId: string) => filterMealUsers.includes(userId));
+      if (!hasFilteredUser) return false;
+    }
+
+    // Filter by meal type
+    if (filterMealTypes.length > 0) {
+      if (!filterMealTypes.includes(meal.mealType)) return false;
+    }
+
+    // Filter by cook responsible
+    if (filterCookResponsible && meal.cookResponsible?.id !== filterCookResponsible) {
+      return false;
+    }
+
+    return true;
   });
 
 
@@ -84,26 +115,21 @@ export default function PlanningPage() {
     onSuccess: () => {
       // Invalidate and refetch
       utils.mealPlan.getWeekPlan.invalidate({
-        mealUserIds: selectedMealUsers,
-        weekStart,
-      });
-    },
-  });
-  
-  const removeMealMutation = api.mealPlan.removeMealFromSlot.useMutation({
-    onSuccess: () => {
-      utils.mealPlan.getWeekPlan.invalidate({
-        mealUserIds: selectedMealUsers,
+        mealUserIds: mealUsers.map(mu => mu.id),
         weekStart,
       });
     },
   });
 
-  const createMealUserMutation = api.mealUser.create.useMutation({
+  const removeMealMutation = api.mealPlan.removeMealFromSlot.useMutation({
     onSuccess: () => {
-      utils.mealUser.getMyHouseholdProfiles.invalidate();
+      utils.mealPlan.getWeekPlan.invalidate({
+        mealUserIds: mealUsers.map(mu => mu.id),
+        weekStart,
+      });
     },
   });
+
 
   function getWeekStart(date: Date) {
     const start = new Date(date);
@@ -267,27 +293,10 @@ export default function PlanningPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        {/* Meal Users Selection */}
-        <MealUserSelection
-          mealUsers={mealUsers}
-          selectedMealUsers={selectedMealUsers}
-          setSelectedMealUsers={setSelectedMealUsers}
-          onCreateMealUser={() => {
-            const pseudo = prompt('Entrez votre pseudo:');
-            if (pseudo) {
-              createMealUserMutation.mutate({
-                pseudo,
-                userId: session?.user?.id
-              });
-            }
-          }}
-          isCreatingMealUser={createMealUserMutation.isPending}
-        />
-
         {/* Next Meals Section - Independent of selected week */}
         <NextMeals
           onMealClick={(meal) => handleMealCardClick(meal, { stopPropagation: () => {} } as React.MouseEvent)}
-          selectedMealUsers={selectedMealUsers}
+          selectedMealUsers={mealUsers.map(mu => mu.id)}
         />
 
         {/* Week Navigation */}
@@ -322,6 +331,125 @@ export default function PlanningPage() {
           </Link>
         </div>
 
+        {/* Filters Section */}
+        {mealUsers.length > 0 && (
+          <Card className="mb-6 sm:mb-8 p-4">
+            <div className="flex items-center mb-4">
+              <Filter className="h-5 w-5 text-gray-600 mr-2" />
+              <h3 className="text-lg font-semibold">Filtres</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Meal Users Filter */}
+              <div>
+                <div className="flex items-center mb-2">
+                  <Users className="h-4 w-4 text-gray-500 mr-2" />
+                  <label className="text-sm font-medium">Profils</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {mealUsers.map(mealUser => (
+                    <Button
+                      key={mealUser.id}
+                      size="sm"
+                      variant={filterMealUsers.includes(mealUser.id) ? "default" : "outline"}
+                      onClick={() => {
+                        const userId = mealUser.id;
+                        const isIncluded = filterMealUsers.includes(userId);
+                        const newUsers = isIncluded
+                          ? filterMealUsers.filter(id => id !== userId)
+                          : [...filterMealUsers, userId];
+                        setFilterMealUsers(newUsers);
+                      }}
+                      className={filterMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    >
+                      {mealUser.pseudo}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Meal Types Filter */}
+              <div>
+                <div className="flex items-center mb-2">
+                  <Utensils className="h-4 w-4 text-gray-500 mr-2" />
+                  <label className="text-sm font-medium">Type de repas</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'BREAKFAST', label: 'Petit-déjeuner' },
+                    { key: 'LUNCH', label: 'Déjeuner' },
+                    { key: 'DINNER', label: 'Dîner' }
+                  ].map(mealType => (
+                    <Button
+                      key={mealType.key}
+                      size="sm"
+                      variant={filterMealTypes.includes(mealType.key) ? "default" : "outline"}
+                      onClick={() => {
+                        const isIncluded = filterMealTypes.includes(mealType.key);
+                        const newTypes = isIncluded
+                          ? filterMealTypes.filter(type => type !== mealType.key)
+                          : [...filterMealTypes, mealType.key];
+                        setFilterMealTypes(newTypes);
+                      }}
+                      className={filterMealTypes.includes(mealType.key) ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    >
+                      {mealType.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cook Responsible Filter */}
+              <div>
+                <div className="flex items-center mb-2">
+                  <ChefHat className="h-4 w-4 text-gray-500 mr-2" />
+                  <label className="text-sm font-medium">Responsable cuisine</label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={filterCookResponsible === '' ? "default" : "outline"}
+                    onClick={() => setFilterCookResponsible('')}
+                    className={filterCookResponsible === '' ? "bg-orange-600 hover:bg-orange-700" : ""}
+                  >
+                    Tous
+                  </Button>
+                  {mealUsers.map(mealUser => (
+                    <Button
+                      key={mealUser.id}
+                      size="sm"
+                      variant={filterCookResponsible === mealUser.id ? "default" : "outline"}
+                      onClick={() => {
+                        setFilterCookResponsible(filterCookResponsible === mealUser.id ? '' : mealUser.id);
+                      }}
+                      className={filterCookResponsible === mealUser.id ? "bg-orange-600 hover:bg-orange-700" : ""}
+                    >
+                      👨‍🍳 {mealUser.pseudo}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Reset Filters */}
+            {(filterMealUsers.length !== mealUsers.length || filterMealTypes.length > 0 || filterCookResponsible !== '') && (
+              <div className="mt-4 pt-4 border-t">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterMealUsers(mealUsers.map(mu => mu.id));
+                    setFilterMealTypes([]);
+                    setFilterCookResponsible('');
+                  }}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Planning Grid */}
         <PlanningGrid
