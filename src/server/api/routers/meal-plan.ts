@@ -83,34 +83,13 @@ export const mealPlanRouter = createTRPCRouter({
 
       // If no meal users provided, use default group from user settings
       if (mealUserIds.length === 0) {
-        const userSettings = await ctx.db.userSettings.findUnique({
-          where: { userId: ctx.session.user.id },
-        });
-
-        const defaultPeopleCount = userSettings?.defaultPeopleCount || 2;
-
+        
         // Get or create default meal users for this user
         const existingMealUsers = await ctx.db.mealUser.findMany({
           where: { userId: ctx.session.user.id },
-          take: defaultPeopleCount,
         });
 
-        // Create additional meal users if needed
-        if (existingMealUsers.length < defaultPeopleCount) {
-          const toCreate = defaultPeopleCount - existingMealUsers.length;
-          for (let i = 0; i < toCreate; i++) {
-            const newMealUser = await ctx.db.mealUser.create({
-              data: {
-                pseudo: `Personne ${existingMealUsers.length + i + 1}`,
-                userId: ctx.session.user.id,
-                ownerId: ctx.session.user.id,
-              }
-            });
-            existingMealUsers.push(newMealUser);
-          }
-        }
-
-        mealUserIds = existingMealUsers.slice(0, defaultPeopleCount).map(mu => mu.id);
+        mealUserIds = existingMealUsers.map(mu => mu.id);
       }
       // Create the meal plan
       const mealPlan = await ctx.db.mealPlan.create({

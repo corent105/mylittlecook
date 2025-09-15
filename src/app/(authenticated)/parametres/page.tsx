@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
-import { Settings, Users, Save, Plus, Edit, Trash2 } from "lucide-react";
+import { Settings, Users, Save, Plus, Edit, Trash2, Mail, Send, Clock, CheckCircle, X } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
@@ -14,23 +14,18 @@ export default function SettingsPage() {
   const [editingProfile, setEditingProfile] = useState<any | null>(null);
   const [newProfileName, setNewProfileName] = useState('');
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [invitingProfileId, setInvitingProfileId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
   const { showAlert, AlertDialogComponent } = useAlertDialog();
 
-  // Get current user settings
-  const { data: userSettings, isLoading: settingsLoading } = api.userSettings.get.useQuery();
+
 
   // Get user's meal users
   const { data: mealUsers = [], refetch: refetchMealUsers } = api.mealUser.getMyHouseholdProfiles.useQuery();
 
-  const updateSettingsMutation = api.userSettings.update.useMutation({
-    onSuccess: () => {
-      // Invalidate cache to refresh the data
-      utils.userSettings.get.invalidate();
-    },
-  });
-
-  const utils = api.useContext();
-
+  // Get sent invitations
+  const { data: sentInvitations = [], refetch: refetchInvitations } = api.profileInvitation.getMySentInvitations.useQuery();
+  
   // Meal user mutations
   const createMealUserMutation = api.mealUser.create.useMutation({
     onSuccess: () => {
@@ -89,6 +84,45 @@ export default function SettingsPage() {
     }
   });
 
+  // Invitation mutations
+  const createInvitationMutation = api.profileInvitation.createInvitation.useMutation({
+    onSuccess: () => {
+      refetchInvitations();
+      setInvitingProfileId(null);
+      setInviteEmail('');
+      showAlert(
+        'Invitation envoyée',
+        'L\'invitation a été envoyée avec succès !',
+        'success'
+      );
+    },
+    onError: (error) => {
+      showAlert(
+        'Erreur',
+        error.message || 'Impossible d\'envoyer l\'invitation. Veuillez réessayer.',
+        'error'
+      );
+    }
+  });
+
+  const cancelInvitationMutation = api.profileInvitation.cancelInvitation.useMutation({
+    onSuccess: () => {
+      refetchInvitations();
+      showAlert(
+        'Invitation annulée',
+        'L\'invitation a été annulée avec succès !',
+        'success'
+      );
+    },
+    onError: (error) => {
+      showAlert(
+        'Erreur',
+        'Impossible d\'annuler l\'invitation. Veuillez réessayer.',
+        'error'
+      );
+    }
+  });
+
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) {
       showAlert(
@@ -135,32 +169,36 @@ export default function SettingsPage() {
     );
   };
 
-  const handleSaveSettings = async (formData: FormData) => {
-    setIsLoading(true);
-    try {
-      const defaultPeopleCount = parseInt(formData.get('defaultPeopleCount') as string);
-      
-      await updateSettingsMutation.mutateAsync({
-        defaultPeopleCount,
-      });
-      
+  const handleSendInvitation = async () => {
+    if (!inviteEmail.trim() || !invitingProfileId) {
       showAlert(
-        'Paramètres sauvegardés',
-        'Vos paramètres ont été sauvegardés avec succès !',
-        'success'
+        'Email requis',
+        'Veuillez entrer un email valide.',
+        'warning'
       );
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      showAlert(
-        'Erreur de sauvegarde',
-        'Impossible de sauvegarder les paramètres. Veuillez réessayer.',
-        'error'
-      );
-    } finally {
-      setIsLoading(false);
+      return;
     }
+
+    await createInvitationMutation.mutateAsync({
+      mealUserId: invitingProfileId,
+      email: inviteEmail.trim()
+    });
   };
 
+  const handleCancelInvitation = (invitationId: string) => {
+    showAlert(
+      'Annuler l\'invitation',
+      'Êtes-vous sûr de vouloir annuler cette invitation ?',
+      'warning',
+      {
+        confirmText: 'Annuler l\'invitation',
+        cancelText: 'Garder',
+        onConfirm: async () => {
+          await cancelInvitationMutation.mutateAsync({ invitationId });
+        }
+      }
+    );
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -176,57 +214,6 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Default People Count Settings */}
-          <Card className="p-6">
-            <div className="flex items-center mb-4">
-              <Users className="h-6 w-6 text-gray-600 mr-2" />
-              <h2 className="text-xl font-semibold">Groupe par défaut</h2>
-            </div>
-            
-            <p className="text-gray-600 mb-6">
-              Définissez le nombre de personnes par défaut pour vos repas. 
-              Ce paramètre sera utilisé automatiquement lors de l'ajout de nouvelles recettes au planning.
-            </p>
-
-            {settingsLoading ? (
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-10 bg-gray-200 rounded mb-4"></div>
-                <div className="h-10 bg-gray-200 rounded w-32"></div>
-              </div>
-            ) : (
-              <form action={handleSaveSettings}>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="defaultPeopleCount" className="text-sm font-medium block">
-                      Nombre de personnes par défaut
-                    </label>
-                    <Input
-                      id="defaultPeopleCount"
-                      name="defaultPeopleCount"
-                      type="number"
-                      min="1"
-                      max="20"
-                      defaultValue={userSettings?.defaultPeopleCount || 2}
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Entre 1 et 20 personnes
-                    </p>
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    disabled={isLoading || updateSettingsMutation.isPending}
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {isLoading || updateSettingsMutation.isPending ? 'Sauvegarde...' : 'Sauvegarder'}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </Card>
 
           {/* Current Meal Users */}
           <Card className="p-6">
@@ -339,11 +326,33 @@ export default function SettingsPage() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-between flex-1">
-                          <span className="font-medium">{mealUser.pseudo}</span>
+                          <div className="flex-1">
+                            <span className="font-medium">{mealUser.pseudo}</span>
+                            {mealUser.user ? (
+                              <div className="text-xs text-green-600 mt-1">
+                                ✓ Lié à {mealUser.user.name || mealUser.user.email}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Non lié à un utilisateur
+                              </div>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-500">
                               Créé le {new Date(mealUser.createdAt).toLocaleDateString('fr-FR')}
                             </span>
+                            {!mealUser.user && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setInvitingProfileId(mealUser.id)}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                title="Inviter quelqu'un pour ce profil"
+                              >
+                                <Mail className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -366,6 +375,103 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Send invitation form */}
+            {invitingProfileId && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-3">
+                  Inviter quelqu'un pour le profil "{mealUsers.find(mu => mu.id === invitingProfileId)?.pseudo}"
+                </h4>
+                <div className="flex gap-3">
+                  <Input
+                    type="email"
+                    placeholder="Email de la personne à inviter"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSendInvitation();
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSendInvitation}
+                    disabled={createInvitationMutation.isPending || !inviteEmail.trim()}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {createInvitationMutation.isPending ? 'Envoi...' : 'Envoyer'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setInvitingProfileId(null);
+                      setInviteEmail('');
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* List of sent invitations */}
+            {sentInvitations.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-medium text-gray-800 mb-3">Invitations envoyées</h4>
+                <div className="space-y-2">
+                  {sentInvitations.map((invitation) => (
+                    <div
+                      key={invitation.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                    >
+                      <div className="flex items-center flex-1">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <Mail className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">
+                            {invitation.email} → {invitation.mealUser.pseudo}
+                          </div>
+                          <div className="text-xs text-gray-500 flex items-center gap-2">
+                            {invitation.usedAt ? (
+                              <span className="text-green-600 flex items-center">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Acceptée le {new Date(invitation.usedAt).toLocaleDateString('fr-FR')}
+                              </span>
+                            ) : invitation.expiresAt < new Date() ? (
+                              <span className="text-red-600 flex items-center">
+                                <X className="h-3 w-3 mr-1" />
+                                Expirée le {new Date(invitation.expiresAt).toLocaleDateString('fr-FR')}
+                              </span>
+                            ) : (
+                              <span className="text-orange-600 flex items-center">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Expire le {new Date(invitation.expiresAt).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {!invitation.usedAt && invitation.expiresAt > new Date() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={cancelInvitationMutation.isPending}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </Card>

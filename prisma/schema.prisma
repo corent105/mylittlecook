@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,23 +8,21 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  image     String?
-  emailVerified DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  hasCompletedOnboarding Boolean @default(false)
-
-  // Relations
-  accounts      Account[]
-  sessions      Session[]
-  recipes       Recipe[]
-  favorites     UserFavorite[]
-  mealUsers     MealUser[]
-  householdProfiles MealUser[] @relation("HouseholdOwner")
-  settings      UserSettings?
+  id                     String              @id @default(cuid())
+  email                  String              @unique
+  name                   String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  emailVerified          DateTime?
+  image                  String?
+  hasCompletedOnboarding Boolean             @default(false)
+  accounts               Account[]
+  householdProfiles      MealUser[]          @relation("HouseholdOwner")
+  mealUsers              MealUser[]
+  recipes                Recipe[]
+  sessions               Session[]
+  favorites              UserFavorite[]
+  sentInvitations        ProfileInvitation[] @relation("ProfileInviter")
 
   @@map("users")
 }
@@ -41,15 +33,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -75,112 +66,97 @@ model VerificationToken {
 }
 
 model MealUser {
-  id        String   @id @default(cuid())
-  pseudo    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  userId    String?
-  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  ownerId   String   // Propriétaire du profil (qui a créé le foyer)
-  owner     User @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id                  String               @id @default(cuid())
+  pseudo              String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  userId              String?
+  ownerId             String
   mealPlanAssignments MealPlanAssignment[]
-  cookResponsibleFor  MealPlan[] @relation("CookResponsible")
+  cookResponsibleFor  MealPlan[]           @relation("CookResponsible")
+  owner               User                 @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  user                User?                @relation(fields: [userId], references: [id])
+  invitations         ProfileInvitation[]  @relation("InvitedProfile")
 
   @@map("meal_users")
 }
 
 model MealPlan {
-  id        String   @id @default(cuid())
-  week      DateTime // Start of the week
-  dayOfWeek Int      // 0 = Monday, 6 = Sunday
-  mealType  MealType
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  recipeId  String?
-  recipe    Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  id                  String               @id @default(cuid())
+  week                DateTime
+  dayOfWeek           Int
+  mealType            MealType
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  recipeId            String?
+  cookResponsibleId   String?
   mealUserAssignments MealPlanAssignment[]
-  
-  // Responsable de cuisine
-  cookResponsibleId String?
-  cookResponsible   MealUser? @relation("CookResponsible", fields: [cookResponsibleId], references: [id], onDelete: SetNull)
+  cookResponsible     MealUser?            @relation("CookResponsible", fields: [cookResponsibleId], references: [id])
+  recipe              Recipe?              @relation(fields: [recipeId], references: [id])
 
   @@map("meal_plans")
 }
 
 model Recipe {
-  id          String   @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   description String?
-  content     String   // Markdown content
+  content     String
   imageUrl    String?
   servings    Int?
-  prepTime    Int?     // minutes
-  cookTime    Int?     // minutes
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
+  prepTime    Int?
+  cookTime    Int?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   authorId    String?
-  author      User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  ingredients RecipeIngredient[]
   mealPlans   MealPlan[]
-  favorites   UserFavorite[]
+  ingredients RecipeIngredient[]
   tags        RecipeTag[]
   types       RecipeType[]
+  author      User?              @relation(fields: [authorId], references: [id])
+  favorites   UserFavorite[]
 
   @@map("recipes")
 }
 
 model Ingredient {
-  id       String @id @default(cuid())
-  name     String @unique
-  unit     String // "g", "ml", "pièce", etc.
-  category String? // "légumes", "viandes", etc.
-
-  // Relations
-  recipes RecipeIngredient[]
+  id       String             @id @default(cuid())
+  name     String             @unique
+  unit     String
+  category String?
+  recipes  RecipeIngredient[]
 
   @@map("ingredients")
 }
 
 model RecipeIngredient {
-  id       String @id @default(cuid())
-  quantity Float
-  notes    String? // Optional notes like "chopped", "diced"
-
-  // Relations
+  id           String     @id @default(cuid())
+  quantity     Float
+  notes        String?
   recipeId     String
-  recipe       Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   ingredientId String
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@unique([recipeId, ingredientId])
   @@map("recipe_ingredients")
 }
 
 model Tag {
-  id      String @id @default(cuid())
-  name    String @unique
-  color   String? // Hex color for UI
-
-  // Relations
+  id      String      @id @default(cuid())
+  name    String      @unique
+  color   String?
   recipes RecipeTag[]
 
   @@map("tags")
 }
 
 model RecipeTag {
-  id String @id @default(cuid())
-
-  // Relations
+  id       String @id @default(cuid())
   recipeId String
-  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   tagId    String
-  tag      Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([recipeId, tagId])
   @@map("recipe_tags")
@@ -189,42 +165,54 @@ model RecipeTag {
 model UserFavorite {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-
-  // Relations
-  userId   String
-  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recipeId String
-  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  userId    String
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, recipeId])
   @@map("user_favorites")
 }
 
 model MealPlanAssignment {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  // Relations
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
   mealPlanId String
-  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   mealUserId String
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   mealUser   MealUser @relation(fields: [mealUserId], references: [id], onDelete: Cascade)
 
   @@unique([mealPlanId, mealUserId])
   @@map("meal_plan_assignments")
 }
 
-model UserSettings {
-  id                    String   @id @default(cuid())
-  defaultPeopleCount    Int      @default(2) // Nombre de personnes par défaut
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+model RecipeType {
+  id        String             @id @default(cuid())
+  type      RecipeCategoryType
+  createdAt DateTime           @default(now())
+  recipeId  String
+  recipe    Recipe             @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, type])
+  @@map("recipe_types")
+}
+
+model ProfileInvitation {
+  id          String    @id @default(cuid())
+  token       String    @unique @default(cuid())
+  email       String
+  profileName String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
 
   // Relations
-  userId               String   @unique
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inviterId  String
+  inviter    User     @relation("ProfileInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  mealUserId String
+  mealUser   MealUser @relation("InvitedProfile", fields: [mealUserId], references: [id], onDelete: Cascade)
 
-  @@map("user_settings")
+  @@map("profile_invitations")
 }
 
 enum MealType {
@@ -235,24 +223,11 @@ enum MealType {
 }
 
 enum RecipeCategoryType {
-  BREAKFAST      // Petit-déjeuner
-  APPETIZER      // Apéritif
-  STARTER        // Entrée
-  MAIN_COURSE    // Plat principal
-  SIDE_DISH      // Accompagnement
-  DESSERT        // Dessert
-  BEVERAGE       // Boisson
-}
-
-model RecipeType {
-  id String @id @default(cuid())
-  type RecipeCategoryType
-  createdAt DateTime @default(now())
-
-  // Relations
-  recipeId String
-  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-
-  @@unique([recipeId, type])
-  @@map("recipe_types")
+  BREAKFAST
+  APPETIZER
+  STARTER
+  MAIN_COURSE
+  SIDE_DISH
+  DESSERT
+  BEVERAGE
 }
