@@ -5,7 +5,8 @@ export const mealUserRouter = createTRPCRouter({
   // Récupérer tous les profils du foyer de l'utilisateur connecté
   getMyHouseholdProfiles: protectedProcedure
     .query(async ({ ctx }) => {
-      return ctx.db.mealUser.findMany({
+      // Vérifier si l'utilisateur a au moins un MealUser
+      const existingMealUsers = await ctx.db.mealUser.findMany({
         where: { ownerId: ctx.session.user.id },
         include: {
           user: {
@@ -17,6 +18,31 @@ export const mealUserRouter = createTRPCRouter({
         },
         orderBy: { createdAt: "asc" }
       });
+
+      // Si l'utilisateur n'a aucun MealUser, en créer un automatiquement
+      if (existingMealUsers.length === 0) {
+        const pseudo = ctx.session.user.name || "Moi";
+
+        const newMealUser = await ctx.db.mealUser.create({
+          data: {
+            pseudo,
+            userId: ctx.session.user.id,
+            ownerId: ctx.session.user.id,
+          },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true }
+            },
+            owner: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        });
+
+        return [newMealUser];
+      }
+
+      return existingMealUsers;
     }),
 
   // Créer le profil initial lors de l'onboarding
@@ -46,12 +72,6 @@ export const mealUserRouter = createTRPCRouter({
             select: { id: true, name: true, email: true }
           }
         }
-      });
-
-      // Marquer l'onboarding comme terminé
-      await ctx.db.user.update({
-        where: { id: ctx.session.user.id },
-        data: { hasCompletedOnboarding: true }
       });
 
       return profile;
@@ -134,15 +154,5 @@ export const mealUserRouter = createTRPCRouter({
         where: { id: input.id }
       });
     }),
-
-  // Vérifier si l'utilisateur a terminé l'onboarding
-  checkOnboardingStatus: protectedProcedure
-    .query(async ({ ctx }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { id: ctx.session.user.id },
-        select: { hasCompletedOnboarding: true }
-      });
-
-      return { hasCompletedOnboarding: user?.hasCompletedOnboarding ?? false };
-    }),
+ 
 });

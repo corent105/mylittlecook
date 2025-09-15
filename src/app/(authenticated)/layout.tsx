@@ -14,10 +14,6 @@ export default async function AuthenticatedLayout({
     // If the user is not authenticated, return the 404 page as requested
     notFound();
   }
-  
-  if (!session.user.hasCompletedOnboarding) {
-    redirect('/onboarding/foyer');
-  }
 
   return <>{children}</>;
 }
