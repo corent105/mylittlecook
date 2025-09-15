@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChefHat, Search, Plus, Download, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ChefHat, Search, Plus, Download, Eye, UserPlus, X } from "lucide-react";
 import { api } from "@/trpc/react";
 import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
@@ -44,6 +44,11 @@ export default function AddMealModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<RecipeCategoryType[]>([]);
 
+  // Quick profile addition state
+  const [showQuickProfileDialog, setShowQuickProfileDialog] = useState(false);
+  const [quickProfileName, setQuickProfileName] = useState('');
+  const [quickProfileEmail, setQuickProfileEmail] = useState('');
+
   const { data: recipes = [], isLoading: recipesLoading } = api.recipe.search.useQuery({
     query: searchQuery,
     types: selectedTypes.length > 0 ? selectedTypes : undefined,
@@ -63,6 +68,22 @@ export default function AddMealModal({
   }, {
     enabled: isOpen && selectedTypes.length > 0 && searchQuery.length === 0
   });
+
+  // Mutations for quick profile creation
+  const utils = api.useUtils();
+
+  const createMealUserMutation = api.mealUser.create.useMutation({
+    onSuccess: (newProfile) => {
+      utils.mealUser.getMyHouseholdProfiles.invalidate();
+      setQuickProfileName('');
+      setQuickProfileEmail('');
+      setShowQuickProfileDialog(false);
+      // Auto-select the new profile
+      setPopupSelectedMealUsers([...popupSelectedMealUsers, newProfile.id]);
+    },
+  });
+
+  const createInvitationMutation = api.profileInvitation.createInvitation.useMutation();
 
   const displayedRecipes = searchQuery.length > 0
     ? recipes
@@ -89,6 +110,32 @@ export default function AddMealModal({
     onClose();
   };
 
+  const handleQuickProfileSubmit = async () => {
+    if (!quickProfileName.trim()) return;
+
+    try {
+      const newProfile = await createMealUserMutation.mutateAsync({
+        pseudo: quickProfileName.trim()
+      });
+
+      // Send invitation if email is provided
+      if (quickProfileEmail.trim()) {
+        await createInvitationMutation.mutateAsync({
+          mealUserId: newProfile.id,
+          email: quickProfileEmail.trim()
+        });
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
+    }
+  };
+
+  const resetQuickProfileDialog = () => {
+    setQuickProfileName('');
+    setQuickProfileEmail('');
+    setShowQuickProfileDialog(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col mx-4">
@@ -101,7 +148,18 @@ export default function AddMealModal({
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* Meal Users Selection */}
           <div className="p-3 bg-gray-50 rounded-lg">
-            <h4 className="font-medium text-sm mb-2">Pour qui cette recette ?</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-sm">Pour qui cette recette ?</h4>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowQuickProfileDialog(true)}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-6 px-2"
+              >
+                <UserPlus className="h-3 w-3 mr-1" />
+                Ajouter
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {mealUsers.map(mealUser => (
                 <Button
@@ -311,6 +369,70 @@ export default function AddMealModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* Quick Profile Creation Dialog */}
+      <Dialog open={showQuickProfileDialog} onOpenChange={resetQuickProfileDialog}>
+        <DialogContent className="w-full max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajouter un profil</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Prénom *
+              </label>
+              <Input
+                placeholder="Prénom de la personne"
+                value={quickProfileName}
+                onChange={(e) => setQuickProfileName(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && quickProfileName.trim()) {
+                    handleQuickProfileSubmit();
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Email (optionnel)
+              </label>
+              <Input
+                type="email"
+                placeholder="email@exemple.com"
+                value={quickProfileEmail}
+                onChange={(e) => setQuickProfileEmail(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && quickProfileName.trim()) {
+                    handleQuickProfileSubmit();
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Si renseigné, une invitation sera envoyée à cette adresse
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetQuickProfileDialog}
+              disabled={createMealUserMutation.isPending}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleQuickProfileSubmit}
+              disabled={createMealUserMutation.isPending || !quickProfileName.trim()}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {createMealUserMutation.isPending ? 'Création...' : 'Créer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
