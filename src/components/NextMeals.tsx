@@ -270,11 +270,6 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
                       {meal.recipe.prepTime}min
                     </span>
                   )}
-                  {meal.recipe?.servings && (
-                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
-                      {meal.recipe.servings}p.
-                    </span>
-                  )}
                   <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center">
                     <Users className="h-2.5 w-2.5 mr-0.5" />
                     {meal.mealUserAssignments?.length || 0}
