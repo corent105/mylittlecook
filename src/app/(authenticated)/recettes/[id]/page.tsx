@@ -101,11 +101,16 @@ export default function RecipePage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Recipe Info */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Recipe Image */}
-            <Card className="overflow-hidden">
-              <div className="h-64 bg-gray-200 relative">
+          {/* Right Column - Recipe Title, Description and Steps */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Recipe Title and Description */}
+            <Card className="p-8">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  {recipe.title}
+                </h1>
+                <div className="h-64 bg-gray-200 relative">
+
                 {recipe.imageUrl ? (
                   <img
                     src={recipe.imageUrl}
@@ -118,61 +123,62 @@ export default function RecipePage() {
                   </div>
                 )}
               </div>
-            </Card>
-
-            {/* Recipe Types */}
-            {recipe.types && recipe.types.length > 0 && (
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Types de recette</h3>
-                <div className="flex flex-wrap gap-2">
-                  {recipe.types.map((recipeType) => (
-                    <RecipeTypeBadge
-                      key={recipeType.id}
-                      type={recipeType.type as keyof typeof RECIPE_TYPES}
-                      size="md"
-                    />
-                  ))}
+                
                 </div>
-              </Card>
-            )}
 
-            {/* Recipe Meta */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Informations</h3>
+                {/* Recipe Info and Types - Mobile Responsive */}
+                <div className="mt-6 space-y-4">
+                  {/* Time and Serving Info */}
+                  <div className="flex flex-wrap gap-4">
+                    {recipe.prepTime && (
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <div>
+                          <div className="text-xs font-medium text-gray-700">Préparation</div>
+                          <div className="text-sm text-gray-900">{recipe.prepTime} min</div>
+                        </div>
+                      </div>
+                    )}
 
-              <div className="space-y-3">
-                {recipe.prepTime && (
-                  <div className="flex items-center space-x-3">
-                    <Clock className="h-5 w-5 text-orange-600" />
-                    <div>
-                      <div className="text-sm font-medium">Préparation</div>
-                      <div className="text-sm text-gray-600">{recipe.prepTime} minutes</div>
-                    </div>
+                    {recipe.cookTime && (
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-red-600" />
+                        <div>
+                          <div className="text-xs font-medium text-gray-700">Cuisson</div>
+                          <div className="text-sm text-gray-900">{recipe.cookTime} min</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {recipe.servings && (
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <div className="text-xs font-medium text-gray-700">Portions</div>
+                          <div className="text-sm text-gray-900">{recipe.servings} pers.</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {recipe.cookTime && (
-                  <div className="flex items-center space-x-3">
-                    <Clock className="h-5 w-5 text-red-600" />
+                  {/* Recipe Types */}
+                  {recipe.types && recipe.types.length > 0 && (
                     <div>
-                      <div className="text-sm font-medium">Cuisson</div>
-                      <div className="text-sm text-gray-600">{recipe.cookTime} minutes</div>
+                      <div className="text-xs font-medium text-gray-700 mb-2">Types</div>
+                      <div className="flex flex-wrap gap-2">
+                        {recipe.types.map((recipeType) => (
+                          <RecipeTypeBadge
+                            key={recipeType.id}
+                            type={recipeType.type as keyof typeof RECIPE_TYPES}
+                            size="md"
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {recipe.servings && (
-                  <div className="flex items-center space-x-3">
-                    <Users className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <div className="text-sm font-medium">Portions</div>
-                      <div className="text-sm text-gray-600">{recipe.servings} personnes</div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
             </Card>
-
+            
             {/* Recipe Ingredients */}
             {recipe.ingredients && recipe.ingredients.length > 0 && (
               <Card className="p-6">
@@ -258,42 +264,6 @@ export default function RecipePage() {
                 </div>
               </Card>
             )}
-
-            {/* Recipe Author */}
-            {recipe.author && (
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Auteur</h3>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                    <span className="text-orange-600 font-semibold">
-                      {recipe.author.name?.charAt(0) || recipe.author.email.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-medium">{recipe.author.name || 'Utilisateur'}</div>
-                    <div className="text-sm text-gray-600">{recipe.author.email}</div>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
-
-          {/* Right Column - Recipe Title, Description and Steps */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Recipe Title and Description */}
-            <Card className="p-8">
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                  {recipe.title}
-                </h1>
-                {recipe.description && (
-                  <p className="text-lg text-gray-600 leading-relaxed">
-                    {recipe.description}
-                  </p>
-                )}
-              </div>
-            </Card>
-
             {/* Recipe Steps */}
             {recipe.steps && recipe.steps.length > 0 && (
               <Card className="p-6">
@@ -351,6 +321,36 @@ export default function RecipePage() {
               </Card>
             )}
           </div>
+          {/* Left Column - Recipe Info */}
+          <div className="lg:col-span-2 space-y-6">
+        
+
+     
+
+      
+
+            
+
+            {/* Recipe Author */}
+            {recipe.author && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Auteur</h3>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span className="text-orange-600 font-semibold">
+                      {recipe.author.name?.charAt(0) || recipe.author.email.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="font-medium">{recipe.author.name || 'Utilisateur'}</div>
+                    <div className="text-sm text-gray-600">{recipe.author.email}</div>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+
+          
         </div>
       </div>
     </div>
