@@ -17,8 +17,7 @@ import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import NextMeals from "@/components/NextMeals";
-import EditMealPlanModal from "@/components/planning/EditMealPlanModal";
-import AddMealModal from "@/components/planning/AddMealModal";
+import MealPlanModal from "@/components/planning/MealPlanModal";
 import PlanningGrid from "@/components/planning/PlanningGrid";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 import { RECIPE_TYPE_OPTIONS } from "@/lib/constants/recipe-types";
@@ -501,7 +500,8 @@ export default function PlanningPage() {
         />
 
         {/* Add Meal Modal */}
-        <AddMealModal
+        <MealPlanModal
+          mode="add"
           isOpen={!!selectedSlot}
           onClose={() => {
             setSelectedSlot(null);
@@ -520,7 +520,8 @@ export default function PlanningPage() {
         />
 
         {/* Edit Meal Plan Modal */}
-        <EditMealPlanModal
+        <MealPlanModal
+          mode="edit"
           isOpen={!!editingMealPlan}
           onClose={() => {
             setEditingMealPlan(null);
