@@ -64,6 +64,11 @@ export default function PlanningPage() {
     }
   }, [mealUsers, selectedMealUsers.length]);
 
+  // Get default settings for slot initialization
+  const { data: defaultSettings = [] } = api.defaultSlotSettings.getUserSettings.useQuery(undefined, {
+    enabled: !!session?.user?.id
+  });
+
   // tRPC queries - get all meal plans for all users
   const { data: allMealPlans = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: mealUsers.map(mu => mu.id), // Get all meal plans
@@ -169,10 +174,40 @@ export default function PlanningPage() {
   const handleSlotClick = (day: number, mealType: MealType) => {
     console.log('Slot clicked:', day, mealType);
     setSelectedSlot({ day, mealType });
-    // Initialize popup meal users with current selection
-    setPopupSelectedMealUsers(selectedMealUsers);
-    // Reset cook responsible
-    setCookResponsibleId('');
+
+    // Convert meal type to Prisma format
+    const prismaMealType = mealType === 'Petit-déjeuner' ? 'BREAKFAST' :
+                          mealType === 'Déjeuner' ? 'LUNCH' : 'DINNER';
+
+    // Find default setting for this slot
+    const defaultSetting = defaultSettings.find(setting =>
+      setting.dayOfWeek === day && setting.mealType === prismaMealType
+    );
+
+    if (defaultSetting) {
+      // Initialize with default meal users
+      if (defaultSetting.defaultAssignments.length > 0) {
+        const defaultUserIds = defaultSetting.defaultAssignments.map(assignment => assignment.mealUserId);
+        setPopupSelectedMealUsers(defaultUserIds);
+        console.log('Initialized with default meal users:', defaultUserIds);
+      } else {
+        // Fallback to all selected meal users
+        setPopupSelectedMealUsers(selectedMealUsers);
+      }
+
+      // Initialize with default cook responsible
+      if (defaultSetting.defaultCookResponsibleId) {
+        setCookResponsibleId(defaultSetting.defaultCookResponsibleId);
+        console.log('Initialized with default cook responsible:', defaultSetting.defaultCookResponsibleId);
+      } else {
+        setCookResponsibleId('');
+      }
+    } else {
+      // No default setting found, use fallback values
+      setPopupSelectedMealUsers(selectedMealUsers);
+      setCookResponsibleId('');
+      console.log('No default setting found, using fallback values');
+    }
   };
 
   const handleMealCardClick = (meal: any, event: React.MouseEvent) => {

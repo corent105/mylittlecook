@@ -128,42 +128,18 @@ export default function MealPlanModal({
     }
   };
 
-  // Get default settings for this slot (only in add mode)
-  const { data: defaultSetting } = api.defaultSlotSettings.getUserSettings.useQuery(undefined, {
-    enabled: isOpen && mode === 'add' && selectedSlot !== null,
-  });
-
-  // Get the specific setting for this slot
-  const currentSlotSetting = defaultSetting?.find(setting =>
-    setting.dayOfWeek === (selectedSlot?.day ?? 0) &&
-    setting.mealType === getPrismaMealType()
-  );
-
-  // Initialize state with default values when modal opens
+  // Initialize recipe selection when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (mode === 'add' && selectedSlot) {
+      if (mode === 'add') {
         // Reset recipe selection for add mode
         setSelectedRecipe(null);
-
-        // Initialize with default settings if available and not already set
-        if (currentSlotSetting && popupSelectedMealUsers.length === 0) {
-          // Set default meal users
-          if (currentSlotSetting.defaultAssignments.length > 0) {
-            setPopupSelectedMealUsers(currentSlotSetting.defaultAssignments.map(assignment => assignment.mealUserId));
-          }
-
-          // Set default cook responsible
-          if (currentSlotSetting.defaultCookResponsibleId && !cookResponsibleId) {
-            setCookResponsibleId(currentSlotSetting.defaultCookResponsibleId);
-          }
-        }
       } else if (mode === 'edit' && editSelectedRecipe) {
         // Initialize selected recipe with current recipe for edit mode
         setSelectedRecipe(editSelectedRecipe);
       }
     }
-  }, [isOpen, mode, selectedSlot, editSelectedRecipe, currentSlotSetting, popupSelectedMealUsers.length, cookResponsibleId, setPopupSelectedMealUsers, setCookResponsibleId]);
+  }, [isOpen, mode, editSelectedRecipe]);
 
   const handleClose = () => {
     setSelectedRecipe(null);
