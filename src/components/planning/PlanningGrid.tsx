@@ -12,15 +12,40 @@ type MealType = typeof MEAL_TYPES[number];
 
 interface PlanningGridProps {
   mealPlan: any[];
+  weekStart: Date;
   onSlotClick: (day: number, mealType: MealType) => void;
   onMealCardClick: (meal: any, event: React.MouseEvent) => void;
 }
 
 export default function PlanningGrid({
   mealPlan,
+  weekStart,
   onSlotClick,
   onMealCardClick
 }: PlanningGridProps) {
+  // Helper function to get the date for a specific day
+  const getDateForDay = (dayIndex: number) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + dayIndex);
+    return date;
+  };
+
+  // Helper function to format date
+  const formatDayDate = (dayIndex: number) => {
+    const date = getDateForDay(dayIndex);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short'
+    });
+  };
+
+  // Helper function to check if date is today
+  const isToday = (dayIndex: number) => {
+    const date = getDateForDay(dayIndex);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
   const getMealsForSlot = (day: number, mealType: MealType) => {
     const mealTypeMap: Record<MealType, string> = {
       'Petit-déjeuner': 'BREAKFAST',
@@ -128,8 +153,11 @@ export default function PlanningGrid({
         {/* Header Row */}
         <div className="font-medium text-gray-700"></div>
         {DAYS.map((day, index) => (
-          <div key={day} className="text-center font-medium text-gray-700 py-2">
-            {day}
+          <div key={day} className={`text-center font-medium py-2 ${isToday(index) ? 'text-orange-600' : 'text-gray-700'}`}>
+            <div className="text-sm">{day}</div>
+            <div className={`text-xs ${isToday(index) ? 'text-orange-500 font-semibold' : 'text-gray-500'}`}>
+              {formatDayDate(index)}
+            </div>
           </div>
         ))}
 
@@ -165,8 +193,11 @@ export default function PlanningGrid({
           <div className="grid grid-cols-7 gap-3 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
             {/* Header Row */}
             {DAYS.map((day, dayIndex) => (
-              <div key={`header-${dayIndex}`} className="text-center text-sm font-medium text-gray-700 mb-3 w-48">
-                {day}
+              <div key={`header-${dayIndex}`} className={`text-center text-sm font-medium mb-3 w-48 ${isToday(dayIndex) ? 'text-orange-600' : 'text-gray-700'}`}>
+                <div>{day}</div>
+                <div className={`text-xs ${isToday(dayIndex) ? 'text-orange-500 font-semibold' : 'text-gray-500'}`}>
+                  {formatDayDate(dayIndex)}
+                </div>
               </div>
             ))}
 

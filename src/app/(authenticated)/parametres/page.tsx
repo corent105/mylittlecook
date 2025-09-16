@@ -11,7 +11,6 @@ import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 import DefaultSlotSettings from "@/components/settings/DefaultSlotSettings";
 
 export default function SettingsPage() {
-  const [isLoading, setIsLoading] = useState(false);
   const [editingProfile, setEditingProfile] = useState<any | null>(null);
   const [newProfileName, setNewProfileName] = useState('');
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);

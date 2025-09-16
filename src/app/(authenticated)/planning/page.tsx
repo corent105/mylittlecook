@@ -495,6 +495,7 @@ export default function PlanningPage() {
         {/* Planning Grid */}
         <PlanningGrid
           mealPlan={mealPlan}
+          weekStart={weekStart}
           onSlotClick={handleSlotClick}
           onMealCardClick={handleMealCardClick}
         />
