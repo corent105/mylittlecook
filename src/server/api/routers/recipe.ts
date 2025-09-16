@@ -176,9 +176,18 @@ export const recipeRouter = createTRPCRouter({
       prepTime: z.number().positive().optional(),
       cookTime: z.number().positive().optional(),
       types: z.array(z.nativeEnum(RecipeCategoryType)),
+      steps: z.array(z.object({
+        id: z.string().optional(),
+        stepNumber: z.number().positive(),
+        title: z.string().optional(),
+        instruction: z.string().min(1),
+        duration: z.number().positive().optional(),
+        temperature: z.string().optional(),
+        notes: z.string().optional(),
+      })).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, types, ...updateData } = input;
+      const { id, types, steps, ...updateData } = input;
 
       return ctx.db.recipe.update({
         where: { id },
@@ -190,6 +199,19 @@ export const recipeRouter = createTRPCRouter({
               type: type
             }))
           },
+          ...(steps && {
+            steps: {
+              deleteMany: {},
+              create: steps.map(step => ({
+                stepNumber: step.stepNumber,
+                title: step.title || null,
+                instruction: step.instruction,
+                duration: step.duration || null,
+                temperature: step.temperature || null,
+                notes: step.notes || null,
+              }))
+            }
+          }),
         },
         include: {
           author: {
@@ -199,6 +221,9 @@ export const recipeRouter = createTRPCRouter({
             include: {
               ingredient: true
             }
+          },
+          steps: {
+            orderBy: { stepNumber: 'asc' }
           },
           tags: {
             include: {
