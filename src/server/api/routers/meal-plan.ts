@@ -81,15 +81,36 @@ export const mealPlanRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       let mealUserIds = input.mealUserIds || [];
 
-      // If no meal users provided, use default group from user settings
+      // If no meal users provided, try to get default settings for this slot
       if (mealUserIds.length === 0) {
-        
-        // Get or create default meal users for this user
-        const existingMealUsers = await ctx.db.mealUser.findMany({
-          where: { userId: ctx.session.user.id },
+        const defaultSetting = await ctx.db.defaultSlotSetting.findUnique({
+          where: {
+            ownerId_dayOfWeek_mealType: {
+              ownerId: ctx.session.user.id,
+              dayOfWeek: input.dayOfWeek,
+              mealType: input.mealType,
+            }
+          },
+          include: {
+            defaultAssignments: true
+          }
         });
 
-        mealUserIds = existingMealUsers.map(mu => mu.id);
+        if (defaultSetting && defaultSetting.defaultAssignments.length > 0) {
+          mealUserIds = defaultSetting.defaultAssignments.map(assignment => assignment.mealUserId);
+
+          // Also set the default cook responsible if not provided and if one is set in defaults
+          if (!input.cookResponsibleId && defaultSetting.defaultCookResponsibleId) {
+            input.cookResponsibleId = defaultSetting.defaultCookResponsibleId;
+          }
+        } else {
+          // Fallback: use all meal users for this user
+          const existingMealUsers = await ctx.db.mealUser.findMany({
+            where: { ownerId: ctx.session.user.id },
+          });
+
+          mealUserIds = existingMealUsers.map(mu => mu.id);
+        }
       }
       // Create the meal plan
       const mealPlan = await ctx.db.mealPlan.create({

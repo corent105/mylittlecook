@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Settings, Users, Save, Plus, Edit, Trash2, Mail, Send, Clock, CheckCircle, X } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
+import DefaultSlotSettings from "@/components/settings/DefaultSlotSettings";
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -213,7 +214,9 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-8">
+          {/* Default Slot Settings */}
+          <DefaultSlotSettings />
 
           {/* Current Meal Users */}
           <Card className="p-6">

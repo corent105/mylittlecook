@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { api } from "@/trpc/react";
 import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES, getCompatibleRecipeTypes } from '@/lib/constants/recipe-types';
-import { RecipeCategoryType } from '@prisma/client';
+import { RecipeCategoryType, MealType as PrismaMealType } from '@prisma/client';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
@@ -102,7 +102,51 @@ export default function AddMealModal({
     return mealTypeMap[selectedSlot.mealType] as 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
   };
 
+  const getPrismaMealType = (): PrismaMealType => {
+    if (!selectedSlot) return 'LUNCH';
+    const mealTypeMap: Record<MealType, PrismaMealType> = {
+      'Petit-déjeuner': 'BREAKFAST',
+      'Déjeuner': 'LUNCH',
+      'Dîner': 'DINNER'
+    };
+    return mealTypeMap[selectedSlot.mealType];
+  };
+
   const compatibleTypes = getCompatibleRecipeTypes(getMealTypeFromSlot());
+
+  // Get default meal users for this slot
+  const { data: defaultMealUsers = [] } = api.defaultSlotSettings.getDefaultMealUsers.useQuery({
+    dayOfWeek: selectedSlot?.day ?? 0,
+    mealType: getPrismaMealType(),
+  }, {
+    enabled: isOpen && selectedSlot !== null,
+  });
+
+  // Get full default setting (including cook responsible)
+  const { data: defaultSetting } = api.defaultSlotSettings.getUserSettings.useQuery(undefined, {
+    enabled: isOpen && selectedSlot !== null,
+  });
+
+  // Get the specific setting for this slot
+  const currentSlotSetting = defaultSetting?.find(setting =>
+    setting.dayOfWeek === (selectedSlot?.day ?? 0) &&
+    setting.mealType === getPrismaMealType()
+  );
+
+  // Initialize selected meal users and cook responsible with defaults when modal opens
+  useEffect(() => {
+    if (isOpen && selectedSlot && currentSlotSetting && popupSelectedMealUsers.length === 0) {
+      // Set default meal users
+      if (currentSlotSetting.defaultAssignments.length > 0) {
+        setPopupSelectedMealUsers(currentSlotSetting.defaultAssignments.map(assignment => assignment.mealUserId));
+      }
+
+      // Set default cook responsible
+      if (currentSlotSetting.defaultCookResponsibleId && !cookResponsibleId) {
+        setCookResponsibleId(currentSlotSetting.defaultCookResponsibleId);
+      }
+    }
+  }, [isOpen, selectedSlot, currentSlotSetting, popupSelectedMealUsers.length, cookResponsibleId, setPopupSelectedMealUsers, setCookResponsibleId]);
 
   const handleClose = () => {
     setSearchQuery('');

@@ -8,20 +8,21 @@ datasource db {
 }
 
 model User {
-  id                String              @id @default(cuid())
-  email             String              @unique
+  id                String               @id @default(cuid())
+  email             String               @unique
   name              String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   emailVerified     DateTime?
   image             String?
   accounts          Account[]
-  householdProfiles MealUser[]          @relation("HouseholdOwner")
+  householdProfiles MealUser[]           @relation("HouseholdOwner")
   mealUsers         MealUser[]
   recipes           Recipe[]
   sessions          Session[]
   favorites         UserFavorite[]
-  sentInvitations   ProfileInvitation[] @relation("ProfileInviter")
+  sentInvitations   ProfileInvitation[]  @relation("ProfileInviter")
+  defaultSlotSettings DefaultSlotSetting[]
 
   @@map("users")
 }
@@ -65,17 +66,19 @@ model VerificationToken {
 }
 
 model MealUser {
-  id                  String               @id @default(cuid())
+  id                  String                         @id @default(cuid())
   pseudo              String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  createdAt           DateTime                       @default(now())
+  updatedAt           DateTime                       @updatedAt
   userId              String?
   ownerId             String
   mealPlanAssignments MealPlanAssignment[]
-  cookResponsibleFor  MealPlan[]           @relation("CookResponsible")
-  owner               User                 @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  user                User?                @relation(fields: [userId], references: [id])
-  invitations         ProfileInvitation[]  @relation("InvitedProfile")
+  cookResponsibleFor  MealPlan[]                     @relation("CookResponsible")
+  owner               User                           @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  user                User?                          @relation(fields: [userId], references: [id])
+  invitations         ProfileInvitation[]            @relation("InvitedProfile")
+  defaultSlotAssignments DefaultSlotSettingAssignment[]
+  defaultCookResponsibleFor DefaultSlotSetting[]     @relation("DefaultCookResponsible")
 
   @@map("meal_users")
 }
@@ -230,6 +233,38 @@ model ProfileInvitation {
   mealUser   MealUser @relation("InvitedProfile", fields: [mealUserId], references: [id], onDelete: Cascade)
 
   @@map("profile_invitations")
+}
+
+model DefaultSlotSetting {
+  id                    String   @id @default(cuid())
+  dayOfWeek            Int      // 0-6 (0 = Monday, 6 = Sunday)
+  mealType             MealType
+  defaultCookResponsibleId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  ownerId              String
+  owner                User                           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  defaultCookResponsible MealUser?                   @relation("DefaultCookResponsible", fields: [defaultCookResponsibleId], references: [id], onDelete: SetNull)
+  defaultAssignments   DefaultSlotSettingAssignment[]
+
+  @@unique([ownerId, dayOfWeek, mealType])
+  @@map("default_slot_settings")
+}
+
+model DefaultSlotSettingAssignment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Relations
+  settingId  String
+  setting    DefaultSlotSetting @relation(fields: [settingId], references: [id], onDelete: Cascade)
+  mealUserId String
+  mealUser   MealUser           @relation(fields: [mealUserId], references: [id], onDelete: Cascade)
+
+  @@unique([settingId, mealUserId])
+  @@map("default_slot_setting_assignments")
 }
 
 enum MealType {
