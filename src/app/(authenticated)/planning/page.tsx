@@ -191,8 +191,9 @@ export default function PlanningPage() {
         setPopupSelectedMealUsers(defaultUserIds);
         console.log('Initialized with default meal users:', defaultUserIds);
       } else {
-        // Fallback to all selected meal users
-        setPopupSelectedMealUsers(selectedMealUsers);
+        // No default assignments, start with empty selection
+        setPopupSelectedMealUsers([]);
+        console.log('Default setting found but no assignments, starting with empty selection');
       }
 
       // Initialize with default cook responsible
@@ -203,10 +204,10 @@ export default function PlanningPage() {
         setCookResponsibleId('');
       }
     } else {
-      // No default setting found, use fallback values
-      setPopupSelectedMealUsers(selectedMealUsers);
+      // No default setting found, start with empty values
+      setPopupSelectedMealUsers([]);
       setCookResponsibleId('');
-      console.log('No default setting found, using fallback values');
+      console.log('No default setting found, starting with empty values');
     }
   };
 
