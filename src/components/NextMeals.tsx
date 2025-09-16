@@ -2,20 +2,20 @@
 
 import { useMemo } from 'react';
 import { Card } from "@/components/ui/card";
-import { ChefHat, Calendar, Users, Edit } from "lucide-react";
+import { ChefHat, Calendar, Users, Eye } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
 interface NextMealsProps {
-  onMealClick?: (meal: any) => void;
   selectedMealUsers: string[];
 }
 
-export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsProps) {
+export default function NextMeals({ selectedMealUsers }: NextMealsProps) {
   const { data: session } = useSession();
 
   // Memoize week calculations to prevent recalculations
@@ -138,12 +138,12 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
       <div className="block sm:hidden">
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
           {nextMeals.map((meal, index) => (
-            <div
+            <Link
               key={meal.id}
-              className={`relative group cursor-pointer transition-all duration-200 flex-shrink-0 w-64 ${
+              href={`/recettes/${meal.recipe?.id}${meal.mealUserAssignments?.length ? `?servings=${meal.mealUserAssignments.length}` : ''}`}
+              className={`relative group cursor-pointer transition-all duration-200 flex-shrink-0 w-64 block ${
                 index === 0 ? 'ring-2 ring-orange-200 bg-orange-50' : 'hover:shadow-md'
               } rounded-lg border border-gray-200 p-3`}
-              onClick={() => onMealClick?.(meal)}
             >
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -202,7 +202,7 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -210,12 +210,12 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
       {/* Desktop Layout */}
       <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {nextMeals.map((meal, index) => (
-          <div
+          <Link
             key={meal.id}
-            className={`relative group cursor-pointer transition-all duration-200 ${
+            href={`/recettes/${meal.recipe?.id}${meal.mealUserAssignments?.length ? `?servings=${meal.mealUserAssignments.length}` : ''}`}
+            className={`relative group cursor-pointer transition-all duration-200 block ${
               index === 0 ? 'ring-2 ring-orange-200 bg-orange-50' : 'hover:shadow-md'
             } rounded-lg border border-gray-200 p-3`}
-            onClick={() => onMealClick?.(meal)}
           >
             <div className="flex items-start space-x-3">
               <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -284,9 +284,9 @@ export default function NextMeals({ onMealClick, selectedMealUsers }: NextMealsP
             </div>
 
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Edit className="h-3 w-3 text-gray-400" />
+              <Eye className="h-3 w-3 text-gray-400" />
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </Card>

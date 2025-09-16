@@ -46,6 +46,16 @@ export default function PlanningGrid({
     return date.toDateString() === today.toDateString();
   };
 
+  // Helper function to check if date is in the past
+  const isPastDay = (dayIndex: number) => {
+    const date = getDateForDay(dayIndex);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to compare dates only
+    const dayDate = new Date(date);
+    dayDate.setHours(0, 0, 0, 0);
+    return dayDate < today;
+  };
+
   const getMealsForSlot = (day: number, mealType: MealType) => {
     const mealTypeMap: Record<MealType, string> = {
       'Petit-déjeuner': 'BREAKFAST',
@@ -148,10 +158,30 @@ export default function PlanningGrid({
         {/* Header Row */}
         <div className="font-medium text-gray-700"></div>
         {DAYS.map((day, index) => (
-          <div key={day} className={`text-center font-medium py-2 ${isToday(index) ? 'text-orange-600' : 'text-gray-700'}`}>
+          <div key={day} className={`text-center font-medium py-2 relative ${
+            isToday(index)
+              ? 'text-orange-600'
+              : isPastDay(index)
+                ? 'text-gray-400'
+                : 'text-gray-700'
+          }`}>
+            {isToday(index) && (
+              <div className="absolute -top-1 left-1/2 transform -translate-x-1/2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+              </div>
+            )}
             <div className="text-sm">{day}</div>
-            <div className={`text-xs ${isToday(index) ? 'text-orange-500 font-semibold' : 'text-gray-500'}`}>
+            <div className={`text-xs ${
+              isToday(index)
+                ? 'text-orange-500 font-semibold'
+                : isPastDay(index)
+                  ? 'text-gray-400'
+                  : 'text-gray-500'
+            }`}>
               {formatDayDate(index)}
+              {isToday(index) && (
+                <span className="block text-orange-600 font-medium">Aujourd'hui</span>
+              )}
             </div>
           </div>
         ))}
@@ -167,12 +197,20 @@ export default function PlanningGrid({
               return (
                 <Card
                   key={`${dayIndex}-${mealType}`}
-                  className={`min-h-32 p-3 cursor-pointer hover:shadow-md transition-all duration-200 ${
+                  className={`min-h-32 p-3 transition-all duration-200 ${
+                    isPastDay(dayIndex)
+                      ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                      : 'cursor-pointer hover:shadow-md'
+                  } ${
                     meals.length > 0
                       ? 'border-solid border-orange-200 bg-orange-50/50'
                       : 'border-dashed border-gray-300 hover:border-orange-300'
+                  } ${
+                    isToday(dayIndex) && meals.length === 0
+                      ? 'ring-2 ring-orange-200 bg-orange-25'
+                      : ''
                   }`}
-                  onClick={() => onSlotClick(dayIndex, mealType)}
+                  onClick={() => !isPastDay(dayIndex) && onSlotClick(dayIndex, mealType)}
                 >
                   {renderSlotContent(meals, dayIndex, mealType, false)}
                 </Card>
@@ -188,10 +226,30 @@ export default function PlanningGrid({
           <div className="grid grid-cols-7 gap-3 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
             {/* Header Row */}
             {DAYS.map((day, dayIndex) => (
-              <div key={`header-${dayIndex}`} className={`text-center text-sm font-medium mb-3 w-48 ${isToday(dayIndex) ? 'text-orange-600' : 'text-gray-700'}`}>
+              <div key={`header-${dayIndex}`} className={`text-center text-sm font-medium mb-3 w-48 relative ${
+                isToday(dayIndex)
+                  ? 'text-orange-600'
+                  : isPastDay(dayIndex)
+                    ? 'text-gray-400'
+                    : 'text-gray-700'
+              }`}>
+                {isToday(dayIndex) && (
+                  <div className="absolute -top-1 left-1/2 transform -translate-x-1/2">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  </div>
+                )}
                 <div>{day}</div>
-                <div className={`text-xs ${isToday(dayIndex) ? 'text-orange-500 font-semibold' : 'text-gray-500'}`}>
+                <div className={`text-xs ${
+                  isToday(dayIndex)
+                    ? 'text-orange-500 font-semibold'
+                    : isPastDay(dayIndex)
+                      ? 'text-gray-400'
+                      : 'text-gray-500'
+                }`}>
                   {formatDayDate(dayIndex)}
+                  {isToday(dayIndex) && (
+                    <span className="block text-orange-600 font-medium">Aujourd'hui</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -206,12 +264,20 @@ export default function PlanningGrid({
                       {mealType}
                     </div>
                     <Card
-                      className={`p-2.5 cursor-pointer hover:shadow-md transition-all duration-200 h-full ${
+                      className={`p-2.5 transition-all duration-200 h-full ${
+                        isPastDay(dayIndex)
+                          ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                          : 'cursor-pointer hover:shadow-md'
+                      } ${
                         meals.length > 0
                           ? 'border-solid border-orange-200 bg-orange-50/50'
                           : 'border-dashed border-gray-300 hover:border-orange-300'
+                      } ${
+                        isToday(dayIndex) && meals.length === 0
+                          ? 'ring-2 ring-orange-200 bg-orange-25'
+                          : ''
                       }`}
-                      onClick={() => onSlotClick(dayIndex, mealType)}
+                      onClick={() => !isPastDay(dayIndex) && onSlotClick(dayIndex, mealType)}
                     >
                       {renderSlotContent(meals, dayIndex, mealType, true)}
                     </Card>

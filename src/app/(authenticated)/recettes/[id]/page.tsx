@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { ChefHat, ArrowLeft, Edit, Clock, Users, Star, Timer, Thermometer } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
-import {useParams} from "next/navigation";
+import {useParams, useSearchParams} from "next/navigation";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
@@ -13,11 +13,34 @@ import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 
 export default function RecipePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const recipeId = params.id as string;
+
+  // Get servings from URL parameters (from meal plan)
+  const servingsFromParams = searchParams.get('servings');
+  const targetServings = servingsFromParams ? parseInt(servingsFromParams, 10) : null;
 
   const { data: recipe, isLoading, error } = api.recipe.getById.useQuery({
     id: recipeId,
   });
+
+  // Calculate adjusted quantities based on target servings
+  const getAdjustedQuantity = (originalQuantity: number) => {
+    if (!targetServings || !recipe?.servings || recipe.servings === 0) {
+      return originalQuantity;
+    }
+    const ratio = targetServings / recipe.servings;
+    const adjustedQuantity = originalQuantity * ratio;
+
+    // Round to reasonable precision
+    if (adjustedQuantity < 1) {
+      return Math.round(adjustedQuantity * 100) / 100; // 2 decimal places for small quantities
+    } else if (adjustedQuantity < 10) {
+      return Math.round(adjustedQuantity * 10) / 10; // 1 decimal place
+    } else {
+      return Math.round(adjustedQuantity); // Round to nearest integer for large quantities
+    }
+  };
 
   if (isLoading) {
     return (
@@ -153,44 +176,66 @@ export default function RecipePage() {
             {/* Recipe Ingredients */}
             {recipe.ingredients && recipe.ingredients.length > 0 && (
               <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Ingrédients</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Ingrédients</h3>
+                  {targetServings && targetServings !== recipe.servings && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
+                      Ajusté pour {targetServings} pers. (recette originale: {recipe.servings} pers.)
+                    </span>
+                  )}
+                </div>
                 <div className="space-y-3">
-                  {recipe.ingredients.map((recipeIngredient) => (
-                    <div 
-                      key={recipeIngredient.id} 
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-baseline space-x-2">
-                          <span className="font-medium text-orange-600">
-                            {recipeIngredient.quantity > 0 && recipeIngredient.quantity}
-                          </span>
-                          {recipeIngredient.ingredient.unit && (
-                            <span className="text-sm text-gray-500">
-                              {recipeIngredient.ingredient.unit}
+                  {recipe.ingredients.map((recipeIngredient) => {
+                    const adjustedQuantity = getAdjustedQuantity(recipeIngredient.quantity);
+                    const isAdjusted = targetServings && targetServings !== recipe.servings && recipeIngredient.quantity > 0;
+
+                    return (
+                      <div
+                        key={recipeIngredient.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-baseline space-x-2">
+                            <span className={`font-medium ${isAdjusted ? 'text-blue-600' : 'text-orange-600'}`}>
+                              {adjustedQuantity > 0 && adjustedQuantity}
                             </span>
-                          )}
-                          <span className="text-gray-900 font-medium">
-                            {recipeIngredient.ingredient.name}
-                          </span>
-                        </div>
-                        {recipeIngredient.notes && (
-                          <div className="text-sm text-gray-600 mt-1 italic">
-                            {recipeIngredient.notes}
+                            {recipeIngredient.ingredient.unit && (
+                              <span className="text-sm text-gray-500">
+                                {recipeIngredient.ingredient.unit}
+                              </span>
+                            )}
+                            <span className="text-gray-900 font-medium">
+                              {recipeIngredient.ingredient.name}
+                            </span>
+                            {isAdjusted && recipeIngredient.quantity > 0 && (
+                              <span className="text-xs text-gray-400 ml-2">
+                                (original: {recipeIngredient.quantity})
+                              </span>
+                            )}
                           </div>
+                          {recipeIngredient.notes && (
+                            <div className="text-sm text-gray-600 mt-1 italic">
+                              {recipeIngredient.notes}
+                            </div>
+                          )}
+                        </div>
+                        {recipeIngredient.ingredient.category && (
+                          <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full ml-2">
+                            {recipeIngredient.ingredient.category}
+                          </span>
                         )}
                       </div>
-                      {recipeIngredient.ingredient.category && (
-                        <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full ml-2">
-                          {recipeIngredient.ingredient.category}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="text-sm text-gray-500 text-center">
                     {recipe.ingredients.length} ingrédient{recipe.ingredients.length > 1 ? 's' : ''}
+                    {targetServings && targetServings !== recipe.servings && (
+                      <span className="block text-blue-600 mt-1">
+                        Quantités ajustées pour {targetServings} personne{targetServings > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </p>
                 </div>
               </Card>

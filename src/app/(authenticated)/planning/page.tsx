@@ -334,7 +334,6 @@ export default function PlanningPage() {
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         {/* Next Meals Section - Independent of selected week */}
         <NextMeals
-          onMealClick={(meal) => handleMealCardClick(meal, { stopPropagation: () => {} } as React.MouseEvent)}
           selectedMealUsers={mealUsers.map(mu => mu.id)}
         />
 
