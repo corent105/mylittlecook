@@ -96,11 +96,6 @@ export default function PlanningGrid({
                 {meal.recipe.prepTime}min
               </span>
             )}
-            {meal.recipe?.servings && (
-              <span className="bg-blue-100 px-1 py-0.5 rounded text-xs">
-                {meal.recipe.servings}p.
-              </span>
-            )}
             <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
               <Users className={`${isMobile ? 'h-2 w-2' : 'h-2.5 w-2.5'} mr-0.5`} />
               {meal.mealUserAssignments?.length || 0}
