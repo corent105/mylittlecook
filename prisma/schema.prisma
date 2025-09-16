@@ -110,6 +110,7 @@ model Recipe {
   authorId    String?
   mealPlans   MealPlan[]
   ingredients RecipeIngredient[]
+  steps       RecipeStep[]
   tags        RecipeTag[]
   types       RecipeType[]
   author      User?              @relation(fields: [authorId], references: [id])
@@ -139,6 +140,23 @@ model RecipeIngredient {
 
   @@unique([recipeId, ingredientId])
   @@map("recipe_ingredients")
+}
+
+model RecipeStep {
+  id          String @id @default(cuid())
+  stepNumber  Int
+  title       String?
+  instruction String   @db.Text  // Markdown content for the step
+  duration    Int?     // Duration in minutes
+  temperature String?  // Cooking temperature if applicable
+  notes       String?  @db.Text  // Additional notes in markdown
+  recipeId    String
+  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([recipeId, stepNumber])
+  @@map("recipe_steps")
 }
 
 model Tag {

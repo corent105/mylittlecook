@@ -34,10 +34,18 @@ export const recipeImportRouter = createTRPCRouter({
         notes: z.string().optional(),
         category: z.string().optional(),
       })).optional(),
+      steps: z.array(z.object({
+        stepNumber: z.number(),
+        title: z.string().optional(),
+        instruction: z.string(),
+        duration: z.number().optional(),
+        temperature: z.string().optional(),
+        notes: z.string().optional(),
+      })).optional(),
       types: z.array(z.nativeEnum(RecipeCategoryType)),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { sourceUrl, parsedIngredients, types, ...recipeData } = input;
+      const { sourceUrl, parsedIngredients, steps, types, ...recipeData } = input;
       
       return ctx.db.$transaction(async (tx) => {
         // Create the recipe first
@@ -106,6 +114,21 @@ export const recipeImportRouter = createTRPCRouter({
           });
         }
 
+        // Create recipe steps
+        if (steps && steps.length > 0) {
+          await tx.recipeStep.createMany({
+            data: steps.map(step => ({
+              recipeId: recipe.id,
+              stepNumber: step.stepNumber,
+              title: step.title,
+              instruction: step.instruction,
+              duration: step.duration,
+              temperature: step.temperature,
+              notes: step.notes,
+            }))
+          });
+        }
+
         // Return the complete recipe with ingredients
         return tx.recipe.findUnique({
           where: { id: recipe.id },
@@ -117,6 +140,9 @@ export const recipeImportRouter = createTRPCRouter({
               include: {
                 ingredient: true
               }
+            },
+            steps: {
+              orderBy: { stepNumber: 'asc' }
             },
             tags: {
               include: {

@@ -1,12 +1,22 @@
 import { parse } from 'node-html-parser';
 import { IngredientParser, type ParsedIngredient } from './ingredient-parser';
 
+export interface ExtractedRecipeStep {
+  stepNumber: number;
+  title?: string;
+  instruction: string; // Markdown content
+  duration?: number; // in minutes
+  temperature?: string;
+  notes?: string;
+}
+
 export interface ExtractedRecipe {
   title: string;
   description?: string;
   ingredients: string[];
   parsedIngredients: ParsedIngredient[];
   instructions: string[];
+  steps: ExtractedRecipeStep[]; // New structured steps
   prepTime?: number;
   cookTime?: number;
   totalTime?: number;
@@ -56,6 +66,30 @@ export class RecipeExtractor {
       }
     }
     return undefined;
+  }
+
+  private static parseInstructionsToSteps(instructions: string[]): ExtractedRecipeStep[] {
+    return instructions.map((instruction, index) => {
+      const cleanInstruction = this.cleanText(instruction);
+
+      // Try to extract duration from the instruction
+      const duration = this.extractTimeFromText(cleanInstruction);
+
+      // Try to extract temperature
+      const tempMatch = cleanInstruction.match(/(\d+)°[CF]?|(\d+)\s*degrés?/i);
+      const temperature = tempMatch ? tempMatch[0] : undefined;
+
+      // Check if instruction starts with a number or bullet point
+      const stepNumberMatch = cleanInstruction.match(/^(\d+)[\.\)]\s*(.+)/);
+      const actualInstruction = stepNumberMatch ? stepNumberMatch[2] : cleanInstruction;
+
+      return {
+        stepNumber: index + 1,
+        instruction: actualInstruction,
+        duration,
+        temperature,
+      };
+    });
   }
 
   private static extractJsonLd(html: string): any[] {
@@ -325,6 +359,7 @@ export class RecipeExtractor {
         ingredients: extracted.ingredients || [],
         parsedIngredients: [],
         instructions: extracted.instructions || [],
+        steps: [], // Will be populated below
         prepTime: extracted.prepTime,
         cookTime: extracted.cookTime,
         servings: extracted.servings,
@@ -336,6 +371,11 @@ export class RecipeExtractor {
       // Parse ingredients into structured format
       if (recipe.ingredients.length > 0) {
         recipe.parsedIngredients = IngredientParser.parseIngredientList(recipe.ingredients);
+      }
+
+      // Parse instructions into structured steps
+      if (recipe.instructions.length > 0) {
+        recipe.steps = this.parseInstructionsToSteps(recipe.instructions);
       }
 
       // Generate markdown

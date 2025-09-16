@@ -57,6 +57,9 @@ export const recipeRouter = createTRPCRouter({
               ingredient: true
             }
           },
+          steps: {
+            orderBy: { stepNumber: 'asc' }
+          },
           tags: {
             include: {
               tag: true

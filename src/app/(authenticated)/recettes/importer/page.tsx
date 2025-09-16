@@ -4,21 +4,14 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChefHat, ArrowLeft, Download, Save, RefreshCw, ExternalLink, Eye, Edit3, Trash2, Plus } from "lucide-react";
+import { ChefHat, ArrowLeft, Download, Save, RefreshCw, ExternalLink, Trash2, Plus } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import dynamic from 'next/dynamic';
-import type { ExtractedRecipe } from '@/lib/recipe-extractor';
+import type { ExtractedRecipe, ExtractedRecipeStep } from '@/lib/recipe-extractor';
 import RecipeTypeSelector from "@/components/recipe/RecipeTypeSelector";
 import { RecipeCategoryType } from '@prisma/client';
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
-
-// Import MDEditor dynamically to avoid SSR issues
-const MDEditor = dynamic(
-  () => import('@uiw/react-md-editor').then((mod) => mod.default),
-  { ssr: false }
-);
 
 interface RecipeForm {
   title: string;
@@ -37,7 +30,6 @@ export default function ImportRecipePage() {
   const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [url, setUrl] = useState('');
   const [extractedRecipe, setExtractedRecipe] = useState<ExtractedRecipe | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   const [editableIngredients, setEditableIngredients] = useState<Array<{
     id: string;
     quantity: number;
@@ -46,6 +38,7 @@ export default function ImportRecipePage() {
     notes?: string;
     category?: string;
   }>>([]);
+  const [editableSteps, setEditableSteps] = useState<ExtractedRecipeStep[]>([]);
   const [form, setForm] = useState<RecipeForm>({
     title: '',
     description: '',
@@ -81,6 +74,9 @@ export default function ImportRecipePage() {
           ...ingredient,
         }))
       );
+
+      // Set editable steps
+      setEditableSteps(data.steps || []);
     },
     onError: (error) => {
       console.error('Extraction error:', error);
@@ -134,14 +130,6 @@ export default function ImportRecipePage() {
       return;
     }
 
-    if (!form.content.trim()) {
-      showAlert(
-        'Contenu manquant',
-        'Le contenu de la recette est obligatoire.',
-        'warning'
-      );
-      return;
-    }
 
     if (form.types.length === 0) {
       showAlert(
@@ -156,13 +144,14 @@ export default function ImportRecipePage() {
       await createRecipeMutation.mutateAsync({
         title: form.title,
         description: form.description || undefined,
-        content: form.content,
+        content: "Recette importée", // Contenu générique pour les recettes importées
         imageUrl: form.imageUrl || undefined,
         prepTime: form.prepTime ? parseInt(form.prepTime) : undefined,
         cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
         servings: form.servings ? parseInt(form.servings) : undefined,
         sourceUrl: form.sourceUrl,
         parsedIngredients: editableIngredients.filter(ing => ing.name.trim() !== ''),
+        steps: editableSteps,
         types: form.types as RecipeCategoryType[],
       });
     } catch (error) {
@@ -246,23 +235,6 @@ export default function ImportRecipePage() {
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Ouvrir
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowPreview(!showPreview)}
-                      >
-                        {showPreview ? (
-                          <>
-                            <Edit3 className="h-4 w-4 mr-2" />
-                            Éditer
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Aperçu
-                          </>
-                        )}
                       </Button>
                     </div>
                   </div>
@@ -381,7 +353,7 @@ export default function ImportRecipePage() {
                       <div className="text-sm text-gray-600 space-y-1">
                         <div>✅ Titre: {extractedRecipe.title}</div>
                         <div>✅ Ingrédients: {extractedRecipe.ingredients?.length || 0} trouvés</div>
-                        <div>✅ Étapes: {extractedRecipe.instructions?.length || 0} trouvées</div>
+                        <div>✅ Étapes: {extractedRecipe.steps?.length || extractedRecipe.instructions?.length || 0} trouvées</div>
                         {extractedRecipe.prepTime && <div>✅ Temps de préparation: {extractedRecipe.prepTime} min</div>}
                         {extractedRecipe.servings && <div>✅ Portions: {extractedRecipe.servings} personnes</div>}
                         {extractedRecipe.imageUrl && <div>✅ Image trouvée</div>}
@@ -497,36 +469,134 @@ export default function ImportRecipePage() {
                 )}
               </div>
             </Card>
+
+            {/* Steps Management Section */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Étapes de préparation</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const newStep: ExtractedRecipeStep = {
+                      stepNumber: editableSteps.length + 1,
+                      instruction: '',
+                    };
+                    setEditableSteps([...editableSteps, newStep]);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter une étape
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {editableSteps.map((step, index) => (
+                  <div key={`step-${index}`} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm">Étape {step.stepNumber}</h4>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const updated = editableSteps.filter((_, idx) => idx !== index);
+                          // Renumber the remaining steps
+                          const renumbered = updated.map((s, idx) => ({ ...s, stepNumber: idx + 1 }));
+                          setEditableSteps(renumbered);
+                        }}
+                        className="p-2"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-4 mb-3">
+                      <div className="col-span-4">
+                        <Input
+                          value={step.title || ''}
+                          onChange={(e) => {
+                            const updated = editableSteps.map((s, idx) =>
+                              idx === index ? { ...s, title: e.target.value } : s
+                            );
+                            setEditableSteps(updated);
+                          }}
+                          placeholder="Titre de l'étape (optionnel)"
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Input
+                          value={step.duration ? step.duration.toString() : ''}
+                          onChange={(e) => {
+                            const value = e.target.value ? parseInt(e.target.value) : undefined;
+                            const updated = editableSteps.map((s, idx) =>
+                              idx === index ? { ...s, duration: value } : s
+                            );
+                            setEditableSteps(updated);
+                          }}
+                          placeholder="Durée (min)"
+                          type="number"
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Input
+                          value={step.temperature || ''}
+                          onChange={(e) => {
+                            const updated = editableSteps.map((s, idx) =>
+                              idx === index ? { ...s, temperature: e.target.value } : s
+                            );
+                            setEditableSteps(updated);
+                          }}
+                          placeholder="Température"
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <textarea
+                        value={step.instruction}
+                        onChange={(e) => {
+                          const updated = editableSteps.map((s, idx) =>
+                            idx === index ? { ...s, instruction: e.target.value } : s
+                          );
+                          setEditableSteps(updated);
+                        }}
+                        placeholder="Instruction détaillée (supporte le markdown)"
+                        className="w-full p-3 border rounded-md text-sm min-h-[80px] resize-y"
+                        rows={3}
+                      />
+                    </div>
+
+                    {step.notes && (
+                      <div>
+                        <Input
+                          value={step.notes}
+                          onChange={(e) => {
+                            const updated = editableSteps.map((s, idx) =>
+                              idx === index ? { ...s, notes: e.target.value } : s
+                            );
+                            setEditableSteps(updated);
+                          }}
+                          placeholder="Notes additionnelles"
+                          className="text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {editableSteps.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Aucune étape détectée. Vous pouvez en ajouter manuellement.</p>
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
         )}
 
-        {/* Markdown Editor Section */}
-        {extractedRecipe && (
-          <Card className="p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Contenu de la recette (Markdown)</h3>
-              <div className="text-sm text-gray-600">
-                Modifiez le contenu généré automatiquement
-              </div>
-            </div>
-            
-            {showPreview ? (
-              <div className="prose max-w-none bg-white p-6 border rounded-lg">
-                <div dangerouslySetInnerHTML={{ __html: form.content }} />
-              </div>
-            ) : (
-              <div className="prose-container">
-                <MDEditor
-                  value={form.content}
-                  onChange={(val) => updateForm('content', val || '')}
-                  height={500}
-                  preview="edit"
-                  data-color-mode="light"
-                />
-              </div>
-            )}
-          </Card>
-        )}
 
         {/* Action Buttons */}
         {extractedRecipe && (

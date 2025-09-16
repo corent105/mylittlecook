@@ -2,10 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChefHat, ArrowLeft, Edit, Clock, Users, Star } from "lucide-react";
+import { ChefHat, ArrowLeft, Edit, Clock, Users, Star, Timer, Thermometer } from "lucide-react";
 import { api } from "@/components/providers/trpc-provider";
 import Link from "next/link";
-import ReactMarkdown from 'react-markdown';
 import {useParams} from "next/navigation";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
@@ -78,7 +77,7 @@ export default function RecipePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Recipe Info */}
           <div className="lg:col-span-1 space-y-6">
             {/* Recipe Image */}
@@ -197,6 +196,7 @@ export default function RecipePage() {
               </Card>
             )}
 
+
             {/* Recipe Tags */}
             {recipe.tags && recipe.tags.length > 0 && (
               <Card className="p-6">
@@ -233,11 +233,11 @@ export default function RecipePage() {
             )}
           </div>
 
-          {/* Right Column - Recipe Content */}
-          <div className="lg:col-span-2">
+          {/* Right Column - Recipe Title, Description and Steps */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Recipe Title and Description */}
             <Card className="p-8">
-              {/* Recipe Title and Description */}
-              <div className="mb-8">
+              <div>
                 <h1 className="text-4xl font-bold text-gray-900 mb-4">
                   {recipe.title}
                 </h1>
@@ -247,62 +247,64 @@ export default function RecipePage() {
                   </p>
                 )}
               </div>
-
-              {/* Recipe Content (Markdown) */}
-              <div className="prose prose-lg max-w-none">
-                <ReactMarkdown
-                  components={{
-                    h1: ({ children }) => (
-                      <h1 className="text-3xl font-bold text-gray-900 mt-8 mb-4 first:mt-0">
-                        {children}
-                      </h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-3">
-                        {children}
-                      </h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
-                        {children}
-                      </h3>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="space-y-2 my-4 list-disc list-inside">
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="space-y-2 my-4 list-decimal list-inside">
-                        {children}
-                      </ol>
-                    ),
-                    li: ({ children }) => (
-                      <li className="text-gray-700 leading-relaxed">
-                        {children}
-                      </li>
-                    ),
-                    p: ({ children }) => (
-                      <p className="text-gray-700 leading-relaxed my-4">
-                        {children}
-                      </p>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="font-semibold text-gray-900">
-                        {children}
-                      </strong>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-orange-200 pl-4 my-4 italic text-gray-600">
-                        {children}
-                      </blockquote>
-                    ),
-                  }}
-                >
-                  {recipe.content}
-                </ReactMarkdown>
-              </div>
             </Card>
+
+            {/* Recipe Steps */}
+            {recipe.steps && recipe.steps.length > 0 && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Étapes de préparation</h3>
+                <div className="space-y-4">
+                  {recipe.steps.map((step) => (
+                    <div
+                      key={step.id}
+                      className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="flex items-center justify-center w-6 h-6 bg-orange-600 text-white text-sm font-bold rounded-full">
+                            {step.stepNumber}
+                          </span>
+                          {step.title && (
+                            <h4 className="font-semibold text-gray-900">{step.title}</h4>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-3 text-sm text-gray-500">
+                          {step.duration && (
+                            <div className="flex items-center space-x-1">
+                              <Timer className="h-4 w-4" />
+                              <span>{step.duration} min</span>
+                            </div>
+                          )}
+                          {step.temperature && (
+                            <div className="flex items-center space-x-1">
+                              <Thermometer className="h-4 w-4" />
+                              <span>{step.temperature}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-gray-700 leading-relaxed">
+                        {step.instruction}
+                      </div>
+
+                      {step.notes && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="text-gray-600 text-sm italic leading-relaxed">
+                            {step.notes}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-500 text-center">
+                    {recipe.steps.length} étape{recipe.steps.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
