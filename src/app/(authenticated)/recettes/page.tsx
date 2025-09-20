@@ -12,6 +12,8 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
+import { RecipeCardSkeleton } from "@/components/skeleton/RecipeCardSkeleton";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function RecipesPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,13 +159,7 @@ export default function RecipesPage() {
         {isLoading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="p-4 sm:p-6">
-                <div className="animate-pulse">
-                  <div className="h-40 sm:h-48 bg-gray-200 rounded-md mb-4"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                </div>
-              </Card>
+              <RecipeCardSkeleton key={i} />
             ))}
           </div>
         )}
@@ -284,7 +280,11 @@ export default function RecipesPage() {
                               disabled={deleteRecipeMutation.isPending}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              {deleteRecipeMutation.isPending ? (
+                                <LoadingSpinner size="sm" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         )}

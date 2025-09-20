@@ -14,6 +14,8 @@ import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 import PlanningFilters from "@/components/planning/PlanningFilters";
 import WeekNavigation from "@/components/planning/WeekNavigation";
 import SimplePlanningGrid from "@/components/planning/SimplePlanningGrid";
+import { PlanningGridSkeleton } from "@/components/skeleton/PlanningGridSkeleton";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
 
@@ -472,13 +474,17 @@ export default function PlanningPage() {
         <AlertDialogComponent />
 
         {/* Planning Grid */}
-        <SimplePlanningGrid
-          mealPlan={mealPlan}
-          weekStart={weekStart}
-          onSlotClick={handleSlotClick}
-          onMealCardClick={handleMealCardClick}
-          onMealMove={handleMealMove}
-        />
+        {mealPlanLoading ? (
+          <PlanningGridSkeleton />
+        ) : (
+          <SimplePlanningGrid
+            mealPlan={mealPlan}
+            weekStart={weekStart}
+            onSlotClick={handleSlotClick}
+            onMealCardClick={handleMealCardClick}
+            onMealMove={handleMealMove}
+          />
+        )}
       </div>
     </div>
   );
