@@ -30,7 +30,11 @@ type MealType = typeof MEAL_TYPES[number];
 export default function PlanningPage() {
   const { data: session } = useSession();
   const { showAlert, AlertDialogComponent } = useAlertDialog();
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  });
   const [selectedSlot, setSelectedSlot] = useState<{day: number, mealType: MealType} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
@@ -150,12 +154,25 @@ export default function PlanningPage() {
     },
   });
 
+  const moveMealMutation = api.mealPlan.moveMealPlan.useMutation({
+    onSuccess: () => {
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      utils.mealPlan.getWeekPlan.invalidate({
+        mealUserIds: mealUsers.map(mu => mu.id),
+        startDate: weekStart,
+        endDate: weekEnd,
+      });
+    },
+  });
+
 
   function getWeekStart(date: Date) {
+    // Instead of getting Monday of the week, we return the date itself
+    // This creates a sliding 7-day window starting from the given date
     const start = new Date(date);
-    const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(start.setDate(diff));
+    start.setHours(0, 0, 0, 0);
+    return start;
   }
 
 
@@ -346,6 +363,44 @@ export default function PlanningPage() {
     }
   };
 
+  const handleMealMove = async (mealPlanId: string, newDay: number, newMealType: MealType) => {
+    try {
+      // Calculate the new meal date based on week start and day
+      const newMealDate = new Date(weekStart);
+      newMealDate.setHours(0, 0, 0, 0); // Normalize to start of day
+      newMealDate.setDate(weekStart.getDate() + newDay);
+
+      // Convert meal type to Prisma format
+      const prismaMealType = newMealType === 'Petit-déjeuner' ? 'BREAKFAST' :
+                            newMealType === 'Déjeuner' ? 'LUNCH' : 'DINNER';
+
+      console.log('Moving meal:', {
+        mealPlanId,
+        newDay,
+        newMealType,
+        prismaMealType,
+        newMealDate: newMealDate.toISOString(),
+        weekStart: weekStart.toISOString()
+      });
+
+      await moveMealMutation.mutateAsync({
+        mealPlanId,
+        newMealDate,
+        newMealType: prismaMealType as any,
+      });
+
+      console.log('Meal moved successfully');
+    } catch (error) {
+      console.error('Error moving meal:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      showAlert(
+        'Erreur de déplacement',
+        `Impossible de déplacer le repas: ${errorMessage}. Veuillez réessayer.`,
+        'error'
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
@@ -376,6 +431,18 @@ export default function PlanningPage() {
               onClick={() => navigateWeek('next')}
             >
               <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                setCurrentWeek(today);
+              }}
+              className="text-orange-600 hover:text-orange-700"
+            >
+              Aujourd'hui
             </Button>
           </div>
           <Link href="/liste-de-courses" className="sm:block">
@@ -549,6 +616,7 @@ export default function PlanningPage() {
           weekStart={weekStart}
           onSlotClick={handleSlotClick}
           onMealCardClick={handleMealCardClick}
+          onMealMove={handleMealMove}
         />
 
         {/* Add Meal Modal */}

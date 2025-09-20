@@ -563,4 +563,86 @@ export const mealPlanRouter = createTRPCRouter({
         }
       });
     }),
+
+  moveMealPlan: protectedProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+      newMealDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      newMealType: z.nativeEnum(MealType),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      console.log('moveMealPlan mutation called with:', {
+        mealPlanId: input.mealPlanId,
+        newMealDate: input.newMealDate.toISOString(),
+        newMealType: input.newMealType,
+        userId: ctx.session.user.id
+      });
+
+      // First, check if the meal plan exists and belongs to the user
+      const existingMealPlan = await ctx.db.mealPlan.findFirst({
+        where: {
+          id: input.mealPlanId,
+          mealUserAssignments: {
+            some: {
+              mealUser: {
+                ownerId: ctx.session.user.id
+              }
+            }
+          }
+        }
+      });
+
+      if (!existingMealPlan) {
+        throw new Error('Meal plan not found or access denied');
+      }
+
+      console.log('Found existing meal plan:', {
+        id: existingMealPlan.id,
+        currentDate: existingMealPlan.mealDate.toISOString(),
+        currentType: existingMealPlan.mealType
+      });
+
+      // Update the meal plan with new date and meal type
+      const updatedMealPlan = await ctx.db.mealPlan.update({
+        where: { id: input.mealPlanId },
+        data: {
+          mealDate: input.newMealDate,
+          mealType: input.newMealType,
+        },
+        include: {
+          recipe: {
+            include: {
+              author: {
+                select: { id: true, name: true, email: true }
+              },
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              },
+              types: {
+                select: {
+                  id: true,
+                  type: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          },
+          cookResponsible: true
+        }
+      });
+
+      console.log('Meal plan updated successfully:', {
+        id: updatedMealPlan.id,
+        newDate: updatedMealPlan.mealDate.toISOString(),
+        newType: updatedMealPlan.mealType
+      });
+
+      return updatedMealPlan;
+    }),
 });
