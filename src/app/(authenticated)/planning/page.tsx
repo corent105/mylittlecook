@@ -70,9 +70,13 @@ export default function PlanningPage() {
   });
 
   // tRPC queries - get all meal plans for all users
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+
   const { data: allMealPlans = [], isLoading: mealPlanLoading } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: mealUsers.map(mu => mu.id), // Get all meal plans
-    weekStart,
+    startDate: weekStart,
+    endDate: weekEnd,
   }, {
     enabled: session?.user?.id !== undefined && mealUsers.length > 0
   });
@@ -122,18 +126,24 @@ export default function PlanningPage() {
   const addMealMutation = api.mealPlan.addMealToSlot.useMutation({
     onSuccess: () => {
       // Invalidate and refetch
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
       utils.mealPlan.getWeekPlan.invalidate({
         mealUserIds: mealUsers.map(mu => mu.id),
-        weekStart,
+        startDate: weekStart,
+        endDate: weekEnd,
       });
     },
   });
 
   const removeMealMutation = api.mealPlan.removeMealFromSlot.useMutation({
     onSuccess: () => {
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
       utils.mealPlan.getWeekPlan.invalidate({
         mealUserIds: mealUsers.map(mu => mu.id),
-        weekStart,
+        startDate: weekStart,
+        endDate: weekEnd,
       });
     },
   });

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ChefHat, ShoppingCart, Download, Share2, Check, Calendar, ArrowLeft, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -12,23 +13,81 @@ import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 
+type DateFilterType = 'today' | 'week' | 'twoWeeks' | 'custom';
+
 export default function ShoppingListPage() {
   const { data: session } = useSession();
   const { showAlert, AlertDialogComponent } = useAlertDialog();
-  const [currentWeek, setCurrentWeek] = useState(new Date());
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [showRecipes, setShowRecipes] = useState(false);
   const [cookFilter, setCookFilter] = useState<string>('all'); // 'all' or specific cook ID
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('week');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
-  const getWeekStart = (date: Date) => {
-    const start = new Date(date);
-    const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(start.setDate(diff));
+  // Handler pour gérer le changement de filtre de date
+  const handleDateFilterChange = (newFilter: DateFilterType) => {
+    setDateFilter(newFilter);
+
+    // Si l'utilisateur choisit "personnalisé" et qu'il n'y a pas de dates définies,
+    // on initialise avec la semaine courante
+    if (newFilter === 'custom' && (!customStartDate || !customEndDate)) {
+      const today = new Date();
+      const weekStart = new Date(today);
+      const day = weekStart.getDay();
+      const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+      weekStart.setDate(diff);
+
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      setCustomStartDate(weekStart.toISOString().split('T')[0]);
+      setCustomEndDate(weekEnd.toISOString().split('T')[0]);
+    }
   };
 
-  const weekStart = getWeekStart(currentWeek);
+  const getDateRange = () => {
+    // Utiliser la date locale actuelle
+    const now = new Date();
+
+    // Créer une date pour aujourd'hui en local (pas UTC)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (dateFilter) {
+      case 'today':
+        // Pour aujourd'hui : de aujourd'hui 00:00 à aujourd'hui 23:59
+        const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        return { startDate: today, endDate: endToday };
+
+      case 'week':
+        // Pour 7 jours : de aujourd'hui 00:00 aux 6 prochains jours 23:59
+        const weekEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 6, 23, 59, 59, 999);
+        return { startDate: today, endDate: weekEnd };
+
+      case 'twoWeeks':
+        // Pour 14 jours : de aujourd'hui 00:00 aux 13 prochains jours 23:59
+        const twoWeeksEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 13, 23, 59, 59, 999);
+        return { startDate: today, endDate: twoWeeksEnd };
+
+      case 'custom':
+        if (!customStartDate || !customEndDate) {
+          // Fallback: utilise aujourd'hui + 6 jours si pas de dates personnalisées
+          const fallbackEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 6, 23, 59, 59, 999);
+          return { startDate: today, endDate: fallbackEnd };
+        }
+        // Pour les dates personnalisées, on utilise directement les valeurs saisies
+        const customStart = new Date(customStartDate + 'T00:00:00');
+        const customEnd = new Date(customEndDate + 'T23:59:59');
+        return { startDate: customStart, endDate: customEnd };
+
+      default:
+        const defaultEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        return { startDate: today, endDate: defaultEnd };
+    }
+  };
+
+  const { startDate, endDate } = getDateRange();
 
   // Get meal users for current user
   const { data: mealUsers = [] } = api.mealUser.getMyHouseholdProfiles.useQuery(undefined, {
@@ -45,16 +104,18 @@ export default function ShoppingListPage() {
 
   const { data: shoppingList = [], isLoading } = api.mealPlan.generateShoppingList.useQuery({
     mealUserIds: selectedMealUsers,
-    weekStart,
+    startDate,
+    endDate,
     cookResponsibleId: cookFilter === 'all' ? undefined : cookFilter,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
-  // Get meal plans for the week to show recipes summary (filtered by cook responsible)
+  // Get meal plans for the period to show recipes summary (filtered by cook responsible)
   const { data: weekMealPlans = [] } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: selectedMealUsers,
-    weekStart,
+    startDate,
+    endDate,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
@@ -68,23 +129,52 @@ export default function ShoppingListPage() {
   // Get available cooks for filtering
   const { data: availableCooks = [] } = api.mealPlan.getCooksForWeek.useQuery({
     mealUserIds: selectedMealUsers,
-    weekStart,
+    startDate,
+    endDate,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
-  const formatWeekRange = (weekStart: Date) => {
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    
-    return `${weekStart.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'long' 
-    })} - ${weekEnd.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'long',
-      year: 'numeric'
-    })}`;
+  const formatDateRange = () => {
+    switch (dateFilter) {
+      case 'today':
+        return `Aujourd'hui - ${startDate.toLocaleDateString('fr-FR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })}`;
+      case 'week':
+        return `7 prochains jours - ${startDate.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long'
+        })} au ${endDate.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })}`;
+      case 'twoWeeks':
+        return `14 prochains jours - ${startDate.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long'
+        })} au ${endDate.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })}`;
+      case 'custom':
+        return `Période personnalisée - ${startDate.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })} au ${endDate.toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })}`;
+      default:
+        return '';
+    }
   };
 
   const toggleItem = (ingredientId: string) => {
@@ -106,23 +196,62 @@ export default function ShoppingListPage() {
     return acc;
   }, {} as Record<string, typeof shoppingList>);
 
-  // Group recipes by day and meal type
+  // Group recipes by day and meal type with actual dates
+  // Note: dayOfWeek in DB: 0=Lundi, 1=Mardi, ..., 6=Dimanche
   const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
   const MEAL_TYPES = { BREAKFAST: 'Petit-déjeuner', LUNCH: 'Déjeuner', DINNER: 'Dîner' };
 
   const groupedRecipes = filteredMealPlans.reduce((acc, mealPlan) => {
     if (!mealPlan.recipe) return acc;
-    
-    const dayName = DAYS[mealPlan.dayOfWeek];
+
+    // Calculate the actual date of this meal: weekStart + dayOfWeek
+    const weekStart = new Date(mealPlan.week);
+    const mealDate = new Date(weekStart);
+    mealDate.setDate(weekStart.getDate() + mealPlan.dayOfWeek);
+
+    // Get the actual day name from the calculated date (more reliable)
+    const dayName = mealDate.toLocaleDateString('fr-FR', { weekday: 'long' });
+    const capitalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+
     const mealTypeName = MEAL_TYPES[mealPlan.mealType as keyof typeof MEAL_TYPES];
-    const key = `${dayName} - ${mealTypeName}`;
-    
-    if (!acc[key]) {
-      acc[key] = [];
+    const dateStr = mealDate.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: mealDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+    });
+
+    if (!acc[mealDate.getTime()]) {
+      acc[mealDate.getTime()] = {
+        date: mealDate,
+        dayName: capitalizedDayName,
+        dateStr,
+        meals: {}
+      };
     }
-    acc[key].push(mealPlan.recipe);
+
+    if (!acc[mealDate.getTime()].meals[mealTypeName]) {
+      acc[mealDate.getTime()].meals[mealTypeName] = [];
+    }
+
+    acc[mealDate.getTime()].meals[mealTypeName].push(mealPlan.recipe);
     return acc;
-  }, {} as Record<string, Array<any>>);
+  }, {} as Record<number, {
+    date: Date;
+    dayName: string;
+    dateStr: string;
+    meals: Record<string, any[]>;
+  }>);
+
+  // Sort by date and flatten for display
+  const sortedGroupedRecipes = Object.values(groupedRecipes)
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .reduce((acc, group) => {
+      Object.entries(group.meals).forEach(([mealType, recipes]) => {
+        const key = `${group.dayName} ${group.dateStr} - ${mealType}`;
+        acc[key] = recipes;
+      });
+      return acc;
+    }, {} as Record<string, Array<any>>);
 
   const uniqueRecipes = Array.from(
     new Map(filteredMealPlans.filter(mp => mp.recipe).map(mp => [mp.recipe!.id, mp.recipe!])).values()
@@ -130,7 +259,7 @@ export default function ShoppingListPage() {
 
   const exportToText = () => {
     const content = [
-      `# Liste de courses - ${formatWeekRange(weekStart)}`,
+      `# Liste de courses - ${formatDateRange()}`,
       '',
       ...Object.entries(groupedIngredients).map(([category, items]) => [
         `## ${category}`,
@@ -146,7 +275,7 @@ export default function ShoppingListPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `liste-de-courses-${weekStart.toISOString().slice(0, 10)}.txt`;
+    a.download = `liste-de-courses-${startDate.toISOString().slice(0, 10)}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -155,7 +284,7 @@ export default function ShoppingListPage() {
 
   const shareList = async () => {
     const content = [
-      `Liste de courses - ${formatWeekRange(weekStart)}`,
+      `Liste de courses - ${formatDateRange()}`,
       '',
       ...Object.entries(groupedIngredients).map(([category, items]) => [
         `${category}:`,
@@ -207,7 +336,7 @@ export default function ShoppingListPage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Liste de Courses</h2>
               <div className="flex items-center justify-center text-gray-600">
                 <Calendar className="h-4 w-4 mr-2" />
-                <span className="text-sm">Semaine du {formatWeekRange(weekStart)}</span>
+                <span className="text-sm">{formatDateRange()}</span>
               </div>
             </div>
 
@@ -237,7 +366,7 @@ export default function ShoppingListPage() {
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Liste de Courses</h2>
                 <div className="flex items-center text-gray-600">
                   <Calendar className="h-4 w-4 mr-2" />
-                  <span>Semaine du {formatWeekRange(weekStart)}</span>
+                  <span>{formatDateRange()}</span>
                 </div>
               </div>
             </div>
@@ -255,7 +384,107 @@ export default function ShoppingListPage() {
           </div>
         </div>
 
-        {/* Filter Section */}
+        {/* Period Filter Section */}
+        <Card className="mb-6 sm:mb-8 p-4">
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">Période de génération</h3>
+              <p className="text-sm text-gray-600">
+                Choisissez la période pour laquelle générer la liste de courses
+              </p>
+              {process.env.NODE_ENV === 'development' && weekMealPlans.length > 0 && (
+                <div className="text-xs text-blue-600 mt-1 font-mono bg-blue-50 px-2 py-1 rounded">
+                  Debug: {weekMealPlans.length} recettes trouvées |
+                  Exemples: {weekMealPlans.slice(0, 2).map(mp => {
+                    const weekStart = new Date(mp.week);
+                    const mealDate = new Date(weekStart);
+                    mealDate.setDate(weekStart.getDate() + mp.dayOfWeek);
+                    return `${mp.dayOfWeek}→${mealDate.toLocaleDateString('fr-FR')}`;
+                  }).join(', ')}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={dateFilter === 'today' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleDateFilterChange('today')}
+                className="flex items-center gap-2"
+              >
+                <Clock className="h-4 w-4" />
+                Aujourd'hui
+              </Button>
+              <Button
+                variant={dateFilter === 'week' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleDateFilterChange('week')}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                7 jours
+              </Button>
+              <Button
+                variant={dateFilter === 'twoWeeks' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleDateFilterChange('twoWeeks')}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                14 jours
+              </Button>
+              <Button
+                variant={dateFilter === 'custom' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleDateFilterChange('custom')}
+                className="flex items-center gap-2"
+              >
+                <Calendar className="h-4 w-4" />
+                Personnalisé
+              </Button>
+            </div>
+
+            {/* Custom Date Range */}
+            {dateFilter === 'custom' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date de début
+                  </label>
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full"
+                    max={customEndDate || undefined}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date de fin
+                  </label>
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full"
+                    min={customStartDate || undefined}
+                  />
+                </div>
+                {customStartDate && customEndDate && new Date(customStartDate) > new Date(customEndDate) && (
+                  <div className="col-span-full">
+                    <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md border border-red-200">
+                      ⚠️ La date de début ne peut pas être postérieure à la date de fin
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Cook Filter Section */}
         {availableCooks.length > 0 && (
           <Card className="mb-6 sm:mb-8 p-4">
             <div className="space-y-4 md:space-y-0 md:flex md:items-center md:justify-between">
@@ -324,7 +553,7 @@ export default function ShoppingListPage() {
               
               {showRecipes && (
                 <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
-                  {Object.entries(groupedRecipes).map(([timeSlot, recipes]) => (
+                  {Object.entries(sortedGroupedRecipes).map(([timeSlot, recipes]) => (
                     <div key={timeSlot} className="border-l-2 border-orange-200 pl-3 sm:pl-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">{timeSlot}</h4>
                       <div className="space-y-2">

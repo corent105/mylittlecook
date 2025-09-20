@@ -36,9 +36,16 @@ export default function NextMeals({ selectedMealUsers }: NextMealsProps) {
   }, []); // Empty dependency array - only calculate once
 
   // Get meal plans for current and next week
+  const currentWeekEnd = new Date(weekStarts.currentWeekStart);
+  currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+
+  const nextWeekEnd = new Date(weekStarts.nextWeekStart);
+  nextWeekEnd.setDate(nextWeekEnd.getDate() + 6);
+
   const { data: currentWeekMealPlan = [] } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: selectedMealUsers,
-    weekStart: weekStarts.currentWeekStart,
+    startDate: weekStarts.currentWeekStart,
+    endDate: currentWeekEnd,
   }, {
     enabled: !!session?.user?.id && selectedMealUsers.length > 0,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
@@ -46,7 +53,8 @@ export default function NextMeals({ selectedMealUsers }: NextMealsProps) {
 
   const { data: nextWeekMealPlan = [] } = api.mealPlan.getWeekPlan.useQuery({
     mealUserIds: selectedMealUsers,
-    weekStart: weekStarts.nextWeekStart,
+    startDate: weekStarts.nextWeekStart,
+    endDate: nextWeekEnd,
   }, {
     enabled: !!session?.user?.id && selectedMealUsers.length > 0,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes

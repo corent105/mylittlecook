@@ -6,7 +6,8 @@ export const mealPlanRouter = createTRPCRouter({
   getWeekPlan: publicProcedure
     .input(z.object({
       mealUserIds: z.array(z.string()),
-      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      startDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      endDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val).optional(),
     }))
     .query(async ({ ctx, input }) => {
       // If no meal users provided, return empty array
@@ -14,18 +15,32 @@ export const mealPlanRouter = createTRPCRouter({
         return [];
       }
 
-      // Create date range for the week to handle timestamp differences
+      // Create date range to handle timestamp differences
       // Ensure we use UTC dates to avoid timezone issues
-      const weekStart = new Date(input.weekStart);
-      weekStart.setUTCHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+      const requestStartDate = new Date(input.startDate);
+      requestStartDate.setUTCHours(0, 0, 0, 0);
+
+      const requestEndDate = input.endDate ? new Date(input.endDate) : new Date(requestStartDate);
+      if (input.endDate) {
+        requestEndDate.setUTCHours(23, 59, 59, 999);
+      } else {
+        requestEndDate.setUTCDate(requestEndDate.getUTCDate() + 6);
+        requestEndDate.setUTCHours(23, 59, 59, 999);
+      }
+
+      // Find meal plans where the week overlaps with our requested period
+      // We need to find weeks that start before or during our period and end after or during our period
+      const earliestWeekStart = new Date(requestStartDate);
+      earliestWeekStart.setUTCDate(earliestWeekStart.getUTCDate() - 6); // Go back 6 days to catch weeks that started before
+
+      const latestWeekStart = new Date(requestEndDate);
+      // Keep as is - we want weeks that start on or before our end date
 
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
           week: {
-            gte: weekStart,
-            lt: weekEnd
+            gte: earliestWeekStart,
+            lte: latestWeekStart
           },
           mealUserAssignments: {
             some: {
@@ -66,7 +81,19 @@ export const mealPlanRouter = createTRPCRouter({
           { mealType: "asc" }
         ]
       });
-      return mealPlans;
+
+      // Filter meal plans to only include those that fall within our requested date range
+      const filteredMealPlans = mealPlans.filter(mealPlan => {
+        // Calculate the actual date of this meal
+        const weekStart = new Date(mealPlan.week);
+        const mealDate = new Date(weekStart);
+        mealDate.setUTCDate(weekStart.getUTCDate() + mealPlan.dayOfWeek);
+
+        // Check if the meal date is within our requested range
+        return mealDate >= requestStartDate && mealDate <= requestEndDate;
+      });
+
+      return filteredMealPlans;
     }),
 
   addMealToSlot: protectedProcedure
@@ -192,7 +219,8 @@ export const mealPlanRouter = createTRPCRouter({
   generateShoppingList: publicProcedure
     .input(z.object({
       mealUserIds: z.array(z.string()),
-      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      startDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      endDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       cookResponsibleId: z.string().optional(), // Filter by cook responsible
     }))
     .query(async ({ ctx, input }) => {
@@ -201,18 +229,23 @@ export const mealPlanRouter = createTRPCRouter({
         return [];
       }
 
-      // Create date range for the week to handle timestamp differences
+      // Create date range to handle timestamp differences
       // Ensure we use UTC dates to avoid timezone issues
-      const weekStart = new Date(input.weekStart);
-      weekStart.setUTCHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+      const requestStartDate = new Date(input.startDate);
+      requestStartDate.setUTCHours(0, 0, 0, 0);
+      const requestEndDate = new Date(input.endDate);
+      requestEndDate.setUTCHours(23, 59, 59, 999);
 
-      const mealPlans = await ctx.db.mealPlan.findMany({
+      // Find overlapping weeks
+      const earliestWeekStart = new Date(requestStartDate);
+      earliestWeekStart.setUTCDate(earliestWeekStart.getUTCDate() - 6);
+      const latestWeekStart = new Date(requestEndDate);
+
+      const allMealPlans = await ctx.db.mealPlan.findMany({
         where: {
           week: {
-            gte: weekStart,
-            lt: weekEnd
+            gte: earliestWeekStart,
+            lte: latestWeekStart
           },
           mealUserAssignments: {
             some: {
@@ -240,6 +273,14 @@ export const mealPlanRouter = createTRPCRouter({
           },
           mealUserAssignments: true
         }
+      });
+
+      // Filter meal plans to only include those that fall within our requested date range
+      const mealPlans = allMealPlans.filter(mealPlan => {
+        const weekStart = new Date(mealPlan.week);
+        const mealDate = new Date(weekStart);
+        mealDate.setUTCDate(weekStart.getUTCDate() + mealPlan.dayOfWeek);
+        return mealDate >= requestStartDate && mealDate <= requestEndDate;
       });
 
       // Aggregate ingredients
@@ -388,7 +429,8 @@ export const mealPlanRouter = createTRPCRouter({
   getCooksForWeek: publicProcedure
     .input(z.object({
       mealUserIds: z.array(z.string()),
-      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      startDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      endDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val).optional(),
     }))
     .query(async ({ ctx, input }) => {
       // If no meal users provided, return empty array
@@ -396,17 +438,28 @@ export const mealPlanRouter = createTRPCRouter({
         return [];
       }
 
-      // Create date range for the week
-      const weekStart = new Date(input.weekStart);
-      weekStart.setUTCHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+      // Create date range
+      const requestStartDate = new Date(input.startDate);
+      requestStartDate.setUTCHours(0, 0, 0, 0);
+
+      const requestEndDate = input.endDate ? new Date(input.endDate) : new Date(requestStartDate);
+      if (input.endDate) {
+        requestEndDate.setUTCHours(23, 59, 59, 999);
+      } else {
+        requestEndDate.setUTCDate(requestEndDate.getUTCDate() + 6);
+        requestEndDate.setUTCHours(23, 59, 59, 999);
+      }
+
+      // Find overlapping weeks
+      const earliestWeekStart = new Date(requestStartDate);
+      earliestWeekStart.setUTCDate(earliestWeekStart.getUTCDate() - 6);
+      const latestWeekStart = new Date(requestEndDate);
 
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
           week: {
-            gte: weekStart,
-            lt: weekEnd
+            gte: earliestWeekStart,
+            lte: latestWeekStart
           },
           mealUserAssignments: {
             some: {
@@ -425,11 +478,19 @@ export const mealPlanRouter = createTRPCRouter({
         distinct: ['cookResponsibleId']
       });
 
+      // Filter meal plans to only include those that fall within our requested date range
+      const filteredMealPlans = mealPlans.filter(mealPlan => {
+        const weekStart = new Date(mealPlan.week);
+        const mealDate = new Date(weekStart);
+        mealDate.setUTCDate(weekStart.getUTCDate() + mealPlan.dayOfWeek);
+        return mealDate >= requestStartDate && mealDate <= requestEndDate;
+      });
+
       // Extract unique cook responsible profiles
-      const uniqueCooks = mealPlans
+      const uniqueCooks = filteredMealPlans
         .filter(mp => mp.cookResponsible)
         .map(mp => mp.cookResponsible!)
-        .filter((cook, index, self) => 
+        .filter((cook, index, self) =>
           self.findIndex(c => c.id === cook.id) === index
         );
 
