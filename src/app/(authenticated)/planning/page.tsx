@@ -150,7 +150,50 @@ export default function PlanningPage() {
   });
 
   const moveMealMutation = api.mealPlan.moveMealPlan.useMutation({
-    onSuccess: () => {
+    onMutate: async ({ mealPlanId, newMealDate, newMealType }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const queryKey = {
+        mealUserIds: mealUsers.map(mu => mu.id),
+        startDate: weekStart,
+        endDate: weekEnd,
+      };
+
+      await utils.mealPlan.getWeekPlan.cancel(queryKey);
+
+      // Snapshot the previous value
+      const previousMealPlans = utils.mealPlan.getWeekPlan.getData(queryKey);
+
+      // Optimistically update to the new value
+      if (previousMealPlans) {
+        utils.mealPlan.getWeekPlan.setData(queryKey, (old :any ) => {
+          if (!old) return old;
+
+          return old.map((meal:any) => {
+            if (meal.id === mealPlanId) {
+              return {
+                ...meal,
+                mealDate: newMealDate,
+                mealType: newMealType,
+              };
+            }
+            return meal;
+          });
+        });
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousMealPlans, queryKey };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousMealPlans) {
+        utils.mealPlan.getWeekPlan.setData(context.queryKey, context.previousMealPlans);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the correct data
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
       utils.mealPlan.getWeekPlan.invalidate({
@@ -483,6 +526,7 @@ export default function PlanningPage() {
             onSlotClick={handleSlotClick}
             onMealCardClick={handleMealCardClick}
             onMealMove={handleMealMove}
+            isMovingMeal={moveMealMutation.isPending}
           />
         )}
       </div>

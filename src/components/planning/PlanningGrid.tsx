@@ -32,6 +32,7 @@ interface PlanningGridProps {
   onSlotClick: (day: number, mealType: MealType) => void;
   onMealCardClick: (meal: any, event: React.MouseEvent) => void;
   onMealMove?: (mealPlanId: string, newDay: number, newMealType: MealType) => void;
+  isMovingMeal?: boolean;
 }
 
 // Composant draggable simplifié
@@ -94,7 +95,8 @@ export default function PlanningGrid({
   weekStart,
   onSlotClick,
   onMealCardClick,
-  onMealMove
+  onMealMove,
+  isMovingMeal = false
 }: PlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeMeal, setActiveMeal] = useState<any>(null);

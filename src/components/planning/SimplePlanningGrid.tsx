@@ -29,10 +29,11 @@ interface SimplePlanningGridProps {
   onSlotClick: (day: number, mealType: MealType) => void;
   onMealCardClick: (meal: any, event: React.MouseEvent) => void;
   onMealMove?: (mealPlanId: string, newDay: number, newMealType: MealType) => void;
+  isMovingMeal?: boolean;
 }
 
 // Composant draggable simplifié
-function DraggableMealCard({ meal, children }: { meal: any, children: React.ReactNode }) {
+function DraggableMealCard({ meal, children, disabled = false }: { meal: any, children: React.ReactNode, disabled?: boolean }) {
   const {
     attributes,
     listeners,
@@ -42,6 +43,7 @@ function DraggableMealCard({ meal, children }: { meal: any, children: React.Reac
   } = useDraggable({
     id: meal.id,
     data: meal,
+    disabled,
   });
 
   const style = {
@@ -53,9 +55,9 @@ function DraggableMealCard({ meal, children }: { meal: any, children: React.Reac
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      className={`${isDragging ? 'opacity-50' : ''}`}
+      {...(disabled ? {} : listeners)}
+      {...(disabled ? {} : attributes)}
+      className={`${isDragging ? 'opacity-50' : ''} ${disabled ? 'cursor-not-allowed opacity-75' : ''}`}
     >
       {children}
     </div>
@@ -91,7 +93,8 @@ export default function SimplePlanningGrid({
   weekStart,
   onSlotClick,
   onMealCardClick,
-  onMealMove
+  onMealMove,
+  isMovingMeal = false
 }: SimplePlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeMeal, setActiveMeal] = useState<any>(null);
@@ -209,12 +212,16 @@ export default function SimplePlanningGrid({
   };
 
   const renderMealCard = (meal: any) => (
-    <DraggableMealCard key={meal.id} meal={meal}>
+    <DraggableMealCard key={meal.id} meal={meal} disabled={isMovingMeal}>
       <div
-        className="relative group bg-white rounded border border-orange-100 p-2 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+        className={`relative group bg-white rounded border border-orange-100 p-2 shadow-sm hover:shadow-md transition-all ${
+          isMovingMeal ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+        }`}
         onClick={(e) => {
           e.stopPropagation();
-          onMealCardClick(meal, e);
+          if (!isMovingMeal) {
+            onMealCardClick(meal, e);
+          }
         }}
       >
         <div className="font-medium text-gray-900 mb-1 text-xs line-clamp-1">
@@ -379,8 +386,17 @@ export default function SimplePlanningGrid({
               <div className="font-medium text-gray-900 text-xs">
                 {activeMeal.recipe?.title || 'Recette supprimée'}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                📋 Déplacement...
+              <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                {isMovingMeal ? (
+                  <>
+                    <div className="w-3 h-3 border border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                    Déplacement en cours...
+                  </>
+                ) : (
+                  <>
+                    📋 Déplacement...
+                  </>
+                )}
               </div>
             </div>
           ) : null}
