@@ -7,9 +7,31 @@ import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 import Image from "next/image";
 import Footer from "@/components/Footer";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Redirect to planning if user is authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      router.push("/planning");
+    }
+  }, [status, session, router]);
+
+  // Show loading while checking authentication or redirecting
+  if (status === "loading" || (status === "authenticated" && session?.user)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <ChefHat className="h-12 w-12 text-orange-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-slate-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
