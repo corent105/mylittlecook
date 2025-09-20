@@ -4,15 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Users,
-  ChefHat,
-  Utensils
-} from "lucide-react";
+import { Calendar } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -20,7 +12,8 @@ import NextMeals from "@/components/NextMeals";
 import MealPlanModal from "@/components/planning/MealPlanModal";
 import PlanningGrid from "@/components/planning/PlanningGrid";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
-import { RECIPE_TYPE_OPTIONS } from "@/lib/constants/recipe-types";
+import PlanningFilters from "@/components/planning/PlanningFilters";
+import WeekNavigation from "@/components/planning/WeekNavigation";
 
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
 
@@ -409,206 +402,29 @@ export default function PlanningPage() {
           selectedMealUsers={mealUsers.map(mu => mu.id)}
         />
 
-        {/* Week Navigation */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 sm:mb-8">
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateWeek('prev')}
-            >
-              <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-              <h2 className="text-sm sm:text-lg md:text-xl font-semibold text-center px-2">
-                {formatWeekRange(getWeekStart(currentWeek))}
-              </h2>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigateWeek('next')}
-            >
-              <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                setCurrentWeek(today);
-              }}
-              className="text-orange-600 hover:text-orange-700"
-            >
-              Aujourd'hui
-            </Button>
-          </div>
-          <Link href="/liste-de-courses" className="sm:block">
-            <Button className="bg-orange-600 hover:bg-orange-700 text-xs sm:text-sm px-3 py-2">
-              <span className="hidden sm:inline">Générer liste de courses</span>
-              <span className="sm:hidden">Liste de courses</span>
-            </Button>
-          </Link>
-        </div>
+        <WeekNavigation
+          currentWeek={currentWeek}
+          onNavigateWeek={navigateWeek}
+          onGoToToday={() => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            setCurrentWeek(today);
+          }}
+          formatWeekRange={formatWeekRange}
+          getWeekStart={getWeekStart}
+        />
 
-        {/* Compact Filters Section */}
-        {mealUsers.length > 0 && (
-          <div className="mb-4">
-            {/* Compact Filter Bar */}
-            <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-2 shadow-sm">
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Filtres</span>
-
-                {/* Active Filters Indicators */}
-                <div className="flex items-center space-x-1">
-                  {filterMealUsers.length < mealUsers.length && (
-                    <div className="flex items-center bg-orange-100 text-orange-800 rounded-full px-2 py-1 text-xs">
-                      <Users className="h-3 w-3 mr-1" />
-                      {filterMealUsers.length}
-                    </div>
-                  )}
-                  {filterRecipeTypes.length > 0 && (
-                    <div className="flex items-center bg-orange-100 text-orange-800 rounded-full px-2 py-1 text-xs">
-                      <Utensils className="h-3 w-3 mr-1" />
-                      {filterRecipeTypes.length}
-                    </div>
-                  )}
-                  {filterCookResponsible && (
-                    <div className="flex items-center bg-orange-100 text-orange-800 rounded-full px-2 py-1 text-xs">
-                      <ChefHat className="h-3 w-3 mr-1" />
-                      1
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Expand/Collapse Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setFiltersExpanded(!filtersExpanded)}
-                className="h-6 w-6 p-0"
-              >
-                <ChevronRight className={`h-4 w-4 transition-transform ${filtersExpanded ? 'rotate-90' : ''}`} />
-              </Button>
-            </div>
-
-            {/* Expanded Filters */}
-            {filtersExpanded && (
-              <div className="mt-2 bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Meal Users Filter */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <Users className="h-4 w-4 text-gray-500 mr-2" />
-                      <label className="text-sm font-medium">Profils</label>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {mealUsers.map(mealUser => (
-                        <Button
-                          key={mealUser.id}
-                          size="sm"
-                          variant={filterMealUsers.includes(mealUser.id) ? "default" : "outline"}
-                          onClick={() => {
-                            const userId = mealUser.id;
-                            const isIncluded = filterMealUsers.includes(userId);
-                            const newUsers = isIncluded
-                              ? filterMealUsers.filter(id => id !== userId)
-                              : [...filterMealUsers, userId];
-                            setFilterMealUsers(newUsers);
-                          }}
-                          className={`text-xs h-7 ${filterMealUsers.includes(mealUser.id) ? "bg-orange-600 hover:bg-orange-700" : ""}`}
-                        >
-                          {mealUser.pseudo}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Recipe Types Filter */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <Utensils className="h-4 w-4 text-gray-500 mr-2" />
-                      <label className="text-sm font-medium">Type de recette</label>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {RECIPE_TYPE_OPTIONS.map(recipeType => (
-                        <Button
-                          key={recipeType.value}
-                          size="sm"
-                          variant={filterRecipeTypes.includes(recipeType.value) ? "default" : "outline"}
-                          onClick={() => {
-                            const isIncluded = filterRecipeTypes.includes(recipeType.value);
-                            const newTypes = isIncluded
-                              ? filterRecipeTypes.filter(type => type !== recipeType.value)
-                              : [...filterRecipeTypes, recipeType.value];
-                            setFilterRecipeTypes(newTypes);
-                          }}
-                          className={`text-xs h-7 ${filterRecipeTypes.includes(recipeType.value) ? "bg-orange-600 hover:bg-orange-700" : ""}`}
-                        >
-                          <span className="mr-1">{recipeType.emoji}</span>
-                          {recipeType.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Cook Responsible Filter */}
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <ChefHat className="h-4 w-4 text-gray-500 mr-2" />
-                      <label className="text-sm font-medium">Responsable cuisine</label>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      <Button
-                        size="sm"
-                        variant={filterCookResponsible === '' ? "default" : "outline"}
-                        onClick={() => setFilterCookResponsible('')}
-                        className={`text-xs h-7 ${filterCookResponsible === '' ? "bg-orange-600 hover:bg-orange-700" : ""}`}
-                      >
-                        Tous
-                      </Button>
-                      {mealUsers.map(mealUser => (
-                        <Button
-                          key={mealUser.id}
-                          size="sm"
-                          variant={filterCookResponsible === mealUser.id ? "default" : "outline"}
-                          onClick={() => {
-                            setFilterCookResponsible(filterCookResponsible === mealUser.id ? '' : mealUser.id);
-                          }}
-                          className={`text-xs h-7 ${filterCookResponsible === mealUser.id ? "bg-orange-600 hover:bg-orange-700" : ""}`}
-                        >
-                          👨‍🍳 {mealUser.pseudo}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reset Filters */}
-                {(filterMealUsers.length !== mealUsers.length || filterRecipeTypes.length > 0 || filterCookResponsible !== '') && (
-                  <div className="mt-3 pt-3 border-t">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFilterMealUsers(mealUsers.map(mu => mu.id));
-                        setFilterRecipeTypes([]);
-                        setFilterCookResponsible('');
-                      }}
-                      className="text-gray-600 hover:text-gray-800 h-7 text-xs"
-                    >
-                      Réinitialiser les filtres
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        <PlanningFilters
+          mealUsers={mealUsers}
+          filterMealUsers={filterMealUsers}
+          setFilterMealUsers={setFilterMealUsers}
+          filterRecipeTypes={filterRecipeTypes}
+          setFilterRecipeTypes={setFilterRecipeTypes}
+          filterCookResponsible={filterCookResponsible}
+          setFilterCookResponsible={setFilterCookResponsible}
+          filtersExpanded={filtersExpanded}
+          setFiltersExpanded={setFiltersExpanded}
+        />
 
         {/* Planning Grid */}
         <PlanningGrid

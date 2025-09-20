@@ -16,7 +16,8 @@
       "Bash(PORT=3000 pnpm dev)",
       "Bash(pnpm run:*)",
       "Bash(pnpm prisma generate:*)",
-      "WebFetch(domain:docs.dndkit.com)"
+      "WebFetch(domain:docs.dndkit.com)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []
