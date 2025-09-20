@@ -79,40 +79,36 @@ export default function NextMeals({ selectedMealUsers }: NextMealsProps) {
     const allMeals: any[] = [];
 
     // Helper function to process meals for a week
-    const processMealsForWeek = (mealPlan: any[], weekStart: Date) => {
-      for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-        for (const mealType of mealOrder) {
-          const dayDate = new Date(weekStart);
-          dayDate.setDate(weekStart.getDate() + dayOfWeek);
+    const processMealsForWeek = (mealPlan: any[]) => {
+      for (const meal of mealPlan) {
+        const mealDate = new Date(meal.mealDate);
+        const mealTypeInfo = mealTimes[meal.mealType as keyof typeof mealTimes];
 
-          const mealDateTime = new Date(dayDate);
-          mealDateTime.setHours(mealTimes[mealType as keyof typeof mealTimes].hour, 0, 0, 0);
+        if (!mealTypeInfo) continue;
 
-          // Only include future meals
-          if (mealDateTime.getTime() > currentDateTime) {
-            const mealsForSlot = mealPlan.filter(m =>
-              m.dayOfWeek === dayOfWeek && m.mealType === mealType
-            );
+        const mealDateTime = new Date(mealDate);
+        mealDateTime.setHours(mealTypeInfo.hour, 0, 0, 0);
 
-            mealsForSlot.forEach(meal => {
-              allMeals.push({
-                ...meal,
-                dayName: DAYS[dayOfWeek],
-                mealTypeLabel: mealTimes[mealType as keyof typeof mealTimes].label,
-                date: new Date(dayDate), // Create new Date instance
-                mealDateTime: mealDateTime.getTime()
-              });
-            });
-          }
+        // Only include future meals
+        if (mealDateTime.getTime() > currentDateTime) {
+          const dayOfWeek = mealDate.getDay() === 0 ? 6 : mealDate.getDay() - 1; // Convert Sunday=0 to Monday=0 format
+
+          allMeals.push({
+            ...meal,
+            dayName: DAYS[dayOfWeek],
+            mealTypeLabel: mealTypeInfo.label,
+            date: new Date(mealDate),
+            mealDateTime: mealDateTime.getTime()
+          });
         }
       }
     };
 
     // Process current week
-    processMealsForWeek(currentWeekMealPlan, weekStarts.currentWeekStart);
+    processMealsForWeek(currentWeekMealPlan);
 
     // Process next week
-    processMealsForWeek(nextWeekMealPlan, weekStarts.nextWeekStart);
+    processMealsForWeek(nextWeekMealPlan);
 
     // Sort by datetime and take first 3 (next meal slots only)
     return allMeals

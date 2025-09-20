@@ -111,7 +111,9 @@ export default function PlanningPage() {
     if (mealPlan.length > 0) {
       console.log('✅ Meal plan loaded:', mealPlan.length, 'items');
       mealPlan.forEach(mp => {
-        console.log(`  - ${mp.recipe?.title || 'No recipe'} | Day: ${mp.dayOfWeek} | Type: ${mp.mealType}`);
+        const mpDate = new Date(mp.mealDate);
+        const mpDayOfWeek = mpDate.getDay() === 0 ? 6 : mpDate.getDay() - 1;
+        console.log(`  - ${mp.recipe?.title || 'No recipe'} | Date: ${mpDate.toDateString()} | Day: ${mpDayOfWeek} | Type: ${mp.mealType}`);
       });
     } else if (selectedMealUsers.length > 0 && !mealPlanLoading) {
       console.log('❌ No meal plans found for:', {
@@ -244,10 +246,13 @@ export default function PlanningPage() {
       'Dîner': 'DINNER'
     };
     
+    // Calculate the actual meal date based on week start and day of week
+    const mealDate = new Date(weekStart);
+    mealDate.setDate(weekStart.getDate() + selectedSlot.day);
+
     const mutationData = {
       mealUserIds: popupSelectedMealUsers,
-      weekStart,
-      dayOfWeek: selectedSlot.day,
+      mealDate,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
       recipeId: recipe.id,
       cookResponsibleId: cookResponsibleId || undefined,
@@ -313,11 +318,13 @@ export default function PlanningPage() {
         mealPlanId: editingMealPlan.id,
       });
 
+      // Calculate the meal date from the editing meal plan
+      const editMealDate = new Date(editingMealPlan.mealDate);
+
       // Add updated meal plan
       await addMealMutation.mutateAsync({
         mealUserIds: popupSelectedMealUsers,
-        weekStart,
-        dayOfWeek: editingMealPlan.dayOfWeek,
+        mealDate: editMealDate,
         mealType: editingMealPlan.mealType as any,
         recipeId: editSelectedRecipe.id,
         cookResponsibleId: cookResponsibleId || undefined,

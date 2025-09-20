@@ -85,8 +85,7 @@ model MealUser {
 
 model MealPlan {
   id                  String               @id @default(cuid())
-  week                DateTime
-  dayOfWeek           Int
+  mealDate            DateTime
   mealType            MealType
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt

@@ -195,7 +195,9 @@ export default function MealPlanModal({
 
   const getModalSubtitle = () => {
     if (mode === 'edit' && editingMealPlan) {
-      return `${DAYS[editingMealPlan.dayOfWeek]} ${getMealTypeLabel(editingMealPlan.mealType)}`;
+      const mealDate = new Date(editingMealPlan.mealDate);
+      const dayOfWeek = mealDate.getDay() === 0 ? 6 : mealDate.getDay() - 1; // Convert Sunday=0 to Monday=0 format
+      return `${DAYS[dayOfWeek]} ${getMealTypeLabel(editingMealPlan.mealType)}`;
     }
     return null;
   };

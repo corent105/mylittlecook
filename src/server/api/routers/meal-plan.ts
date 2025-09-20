@@ -38,9 +38,9 @@ export const mealPlanRouter = createTRPCRouter({
 
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
-          week: {
-            gte: earliestWeekStart,
-            lte: latestWeekStart
+          mealDate: {
+            gte: requestStartDate,
+            lte: requestEndDate
           },
           mealUserAssignments: {
             some: {
@@ -77,30 +77,18 @@ export const mealPlanRouter = createTRPCRouter({
           cookResponsible: true
         },
         orderBy: [
-          { dayOfWeek: "asc" },
+          { mealDate: "asc" },
           { mealType: "asc" }
         ]
       });
 
-      // Filter meal plans to only include those that fall within our requested date range
-      const filteredMealPlans = mealPlans.filter(mealPlan => {
-        // Calculate the actual date of this meal
-        const weekStart = new Date(mealPlan.week);
-        const mealDate = new Date(weekStart);
-        mealDate.setUTCDate(weekStart.getUTCDate() + mealPlan.dayOfWeek);
-
-        // Check if the meal date is within our requested range
-        return mealDate >= requestStartDate && mealDate <= requestEndDate;
-      });
-
-      return filteredMealPlans;
+      return mealPlans;
     }),
 
   addMealToSlot: protectedProcedure
     .input(z.object({
       mealUserIds: z.array(z.string()).optional(),
-      weekStart: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
-      dayOfWeek: z.number().min(0).max(6),
+      mealDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
       mealType: z.nativeEnum(MealType),
       recipeId: z.string(),
       cookResponsibleId: z.string().optional(),
@@ -110,11 +98,12 @@ export const mealPlanRouter = createTRPCRouter({
 
       // If no meal users provided, try to get default settings for this slot
       if (mealUserIds.length === 0) {
+        const dayOfWeek = input.mealDate.getDay() === 0 ? 6 : input.mealDate.getDay() - 1; // Convert Sunday=0 to Monday=0 format
         const defaultSetting = await ctx.db.defaultSlotSetting.findUnique({
           where: {
             ownerId_dayOfWeek_mealType: {
               ownerId: ctx.session.user.id,
-              dayOfWeek: input.dayOfWeek,
+              dayOfWeek: dayOfWeek,
               mealType: input.mealType,
             }
           },
@@ -142,8 +131,7 @@ export const mealPlanRouter = createTRPCRouter({
       // Create the meal plan
       const mealPlan = await ctx.db.mealPlan.create({
         data: {
-          week: input.weekStart,
-          dayOfWeek: input.dayOfWeek,
+          mealDate: input.mealDate,
           mealType: input.mealType,
           recipeId: input.recipeId,
           cookResponsibleId: input.cookResponsibleId,
@@ -243,9 +231,9 @@ export const mealPlanRouter = createTRPCRouter({
 
       const allMealPlans = await ctx.db.mealPlan.findMany({
         where: {
-          week: {
-            gte: earliestWeekStart,
-            lte: latestWeekStart
+          mealDate: {
+            gte: requestStartDate,
+            lte: requestEndDate
           },
           mealUserAssignments: {
             some: {
@@ -275,13 +263,7 @@ export const mealPlanRouter = createTRPCRouter({
         }
       });
 
-      // Filter meal plans to only include those that fall within our requested date range
-      const mealPlans = allMealPlans.filter(mealPlan => {
-        const weekStart = new Date(mealPlan.week);
-        const mealDate = new Date(weekStart);
-        mealDate.setUTCDate(weekStart.getUTCDate() + mealPlan.dayOfWeek);
-        return mealDate >= requestStartDate && mealDate <= requestEndDate;
-      });
+      const mealPlans = allMealPlans;
 
       // Aggregate ingredients
       const ingredientMap = new Map<string, {
@@ -349,7 +331,7 @@ export const mealPlanRouter = createTRPCRouter({
 
       const sourceMeals = await ctx.db.mealPlan.findMany({
         where: {
-          week: {
+          mealDate: {
             gte: sourceWeekStart,
             lt: sourceWeekEnd
           },
@@ -380,7 +362,7 @@ export const mealPlanRouter = createTRPCRouter({
       // Delete existing meals for target week for these users
       const existingTargetMeals = await ctx.db.mealPlan.findMany({
         where: {
-          week: {
+          mealDate: {
             gte: targetWeekStart,
             lt: targetWeekEnd
           },
@@ -403,10 +385,15 @@ export const mealPlanRouter = createTRPCRouter({
       // Create new meals for target week
       const results = [];
       for (const sourceMeal of sourceMeals) {
+        // Calculate the target meal date by adding the same number of days to target week start
+        const sourceMealDate = new Date(sourceMeal.mealDate);
+        const sourceWeekDaysDiff = Math.floor((sourceMealDate.getTime() - sourceWeekStart.getTime()) / (1000 * 60 * 60 * 24));
+        const targetMealDate = new Date(targetWeekStart);
+        targetMealDate.setUTCDate(targetWeekStart.getUTCDate() + sourceWeekDaysDiff);
+
         const newMeal = await ctx.db.mealPlan.create({
           data: {
-            week: input.targetWeekStart,
-            dayOfWeek: sourceMeal.dayOfWeek,
+            mealDate: targetMealDate,
             mealType: sourceMeal.mealType,
             recipeId: sourceMeal.recipeId,
           }
@@ -457,9 +444,9 @@ export const mealPlanRouter = createTRPCRouter({
 
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
-          week: {
-            gte: earliestWeekStart,
-            lte: latestWeekStart
+          mealDate: {
+            gte: requestStartDate,
+            lte: requestEndDate
           },
           mealUserAssignments: {
             some: {
@@ -478,16 +465,8 @@ export const mealPlanRouter = createTRPCRouter({
         distinct: ['cookResponsibleId']
       });
 
-      // Filter meal plans to only include those that fall within our requested date range
-      const filteredMealPlans = mealPlans.filter(mealPlan => {
-        const weekStart = new Date(mealPlan.week);
-        const mealDate = new Date(weekStart);
-        mealDate.setUTCDate(weekStart.getUTCDate() + mealPlan.dayOfWeek);
-        return mealDate >= requestStartDate && mealDate <= requestEndDate;
-      });
-
       // Extract unique cook responsible profiles
-      const uniqueCooks = filteredMealPlans
+      const uniqueCooks = mealPlans
         .filter(mp => mp.cookResponsible)
         .map(mp => mp.cookResponsible!)
         .filter((cook, index, self) =>

@@ -63,10 +63,19 @@ export default function PlanningGrid({
       'Dîner': 'DINNER'
     };
 
-    return mealPlan.filter(m =>
-      m.dayOfWeek === day &&
-      m.mealType === mealTypeMap[mealType]
-    );
+    // Calculate the target date for this slot
+    const targetDate = new Date(weekStart);
+    targetDate.setDate(weekStart.getDate() + day);
+
+    return mealPlan.filter(m => {
+      // Compare the meal date with the target date
+      const mealDate = new Date(m.mealDate);
+      const isSameDate = mealDate.getFullYear() === targetDate.getFullYear() &&
+                        mealDate.getMonth() === targetDate.getMonth() &&
+                        mealDate.getDate() === targetDate.getDate();
+
+      return isSameDate && m.mealType === mealTypeMap[mealType];
+    });
   };
 
   const renderMealCard = (meal: any, isMobile = false) => (

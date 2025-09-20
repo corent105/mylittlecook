@@ -204,10 +204,8 @@ export default function ShoppingListPage() {
   const groupedRecipes = filteredMealPlans.reduce((acc, mealPlan) => {
     if (!mealPlan.recipe) return acc;
 
-    // Calculate the actual date of this meal: weekStart + dayOfWeek
-    const weekStart = new Date(mealPlan.week);
-    const mealDate = new Date(weekStart);
-    mealDate.setDate(weekStart.getDate() + mealPlan.dayOfWeek);
+    // Use the mealDate directly from the meal plan
+    const mealDate = new Date(mealPlan.mealDate);
 
     // Get the actual day name from the calculated date (more reliable)
     const dayName = mealDate.toLocaleDateString('fr-FR', { weekday: 'long' });
@@ -396,10 +394,8 @@ export default function ShoppingListPage() {
                 <div className="text-xs text-blue-600 mt-1 font-mono bg-blue-50 px-2 py-1 rounded">
                   Debug: {weekMealPlans.length} recettes trouvées |
                   Exemples: {weekMealPlans.slice(0, 2).map(mp => {
-                    const weekStart = new Date(mp.week);
-                    const mealDate = new Date(weekStart);
-                    mealDate.setDate(weekStart.getDate() + mp.dayOfWeek);
-                    return `${mp.dayOfWeek}→${mealDate.toLocaleDateString('fr-FR')}`;
+                    const mealDate = new Date(mp.mealDate);
+                    return mealDate.toLocaleDateString('fr-FR');
                   }).join(', ')}
                 </div>
               )}
