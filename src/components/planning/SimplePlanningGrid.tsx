@@ -15,9 +15,6 @@ import {
   closestCenter,
   useDraggable,
   useDroppable,
-  MouseSensor,
-  TouchSensor,
-  DragOverEvent,
 } from '@dnd-kit/core';
 import { useState } from 'react';
 
@@ -26,7 +23,7 @@ const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
 
 type MealType = typeof MEAL_TYPES[number];
 
-interface PlanningGridProps {
+interface SimplePlanningGridProps {
   mealPlan: any[];
   weekStart: Date;
   onSlotClick: (day: number, mealType: MealType) => void;
@@ -89,13 +86,13 @@ function DroppableSlot({ slotId, children, isPastDay = false }: {
   );
 }
 
-export default function PlanningGrid({
+export default function SimplePlanningGrid({
   mealPlan,
   weekStart,
   onSlotClick,
   onMealCardClick,
   onMealMove
-}: PlanningGridProps) {
+}: SimplePlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeMeal, setActiveMeal] = useState<any>(null);
 
@@ -148,6 +145,7 @@ export default function PlanningGrid({
       onMealMove(meal.id, targetDay, targetMealType);
     }
   };
+
   // Helper function to get the date for a specific day
   const getDateForDay = (dayIndex: number) => {
     const date = new Date(weekStart);
@@ -170,15 +168,6 @@ export default function PlanningGrid({
   };
 
   const daysToDisplay = getDaysToDisplay();
-
-  // Helper function to format date
-  const formatDayDate = (dayIndex: number) => {
-    const date = getDateForDay(dayIndex);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short'
-    });
-  };
 
   // Helper function to check if date is today
   const isToday = (dayIndex: number) => {
@@ -219,7 +208,7 @@ export default function PlanningGrid({
     });
   };
 
-  const renderMealCard = (meal: any, isMobile = false) => (
+  const renderMealCard = (meal: any) => (
     <DraggableMealCard key={meal.id} meal={meal}>
       <div
         className="relative group bg-white rounded border border-orange-100 p-2 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
@@ -228,7 +217,7 @@ export default function PlanningGrid({
           onMealCardClick(meal, e);
         }}
       >
-        <div className={`font-medium text-gray-900 mb-1 text-xs ${isMobile ? 'line-clamp-2' : 'line-clamp-1'}`}>
+        <div className="font-medium text-gray-900 mb-1 text-xs line-clamp-1">
           {meal.recipe?.title || 'Recette supprimée'}
         </div>
 
@@ -236,30 +225,30 @@ export default function PlanningGrid({
           {/* Recipe Types */}
           {meal.recipe?.types && meal.recipe.types.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {meal.recipe.types.slice(0, isMobile ? 2 : 3).map((recipeType: any) => (
+              {meal.recipe.types.slice(0, 2).map((recipeType: any) => (
                 <RecipeTypeBadge
                   key={recipeType.id}
                   type={recipeType.type as keyof typeof RECIPE_TYPES}
                   size="sm"
                 />
               ))}
-              {meal.recipe.types.length > (isMobile ? 2 : 3) && (
+              {meal.recipe.types.length > 2 && (
                 <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
-                  +{meal.recipe.types.length - (isMobile ? 2 : 3)}
+                  +{meal.recipe.types.length - 2}
                 </span>
               )}
             </div>
           )}
 
           {/* Recipe Info */}
-          <div className={`flex items-center space-x-1 text-xs text-gray-500 ${isMobile ? 'flex-wrap gap-1' : ''}`}>
+          <div className="flex items-center space-x-1 text-xs text-gray-500">
             {meal.recipe?.prepTime && (
               <span className="bg-orange-100 px-1 py-0.5 rounded text-xs">
                 {meal.recipe.prepTime}min
               </span>
             )}
             <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
-              <Users className={`${isMobile ? 'h-2 w-2' : 'h-2.5 w-2.5'} mr-0.5`} />
+              <Users className="h-2.5 w-2.5 mr-0.5" />
               {meal.mealUserAssignments?.length || 0}
             </span>
             {meal.cookResponsible && (
@@ -277,15 +266,15 @@ export default function PlanningGrid({
     </DraggableMealCard>
   );
 
-  const renderSlotContent = (meals: any[], dayIndex: number, mealType: MealType, isMobile = false) => {
+  const renderSlotContent = (meals: any[], dayIndex: number, mealType: MealType) => {
     if (meals.length > 0) {
       return (
-        <div className={`${isMobile ? 'space-y-1' : 'space-y-2'}`}>
-          {meals.map((meal) => renderMealCard(meal, isMobile))}
+        <div className="space-y-2">
+          {meals.map((meal) => renderMealCard(meal))}
 
-          <div className={`flex items-center justify-center py-1 text-gray-400 hover:text-orange-500 transition-colors border-t border-dashed border-orange-200`}>
+          <div className="flex items-center justify-center py-1 text-gray-400 hover:text-orange-500 transition-colors border-t border-dashed border-orange-200">
             <div className="text-center">
-              <Plus className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} mx-auto mb-0.5`} />
+              <Plus className="h-4 w-4 mx-auto mb-0.5" />
               <div className="text-xs">Ajouter</div>
             </div>
           </div>
@@ -296,7 +285,7 @@ export default function PlanningGrid({
     return (
       <div className="flex items-center justify-center min-h-20 text-gray-400 hover:text-orange-500 transition-colors">
         <div className="text-center">
-          <Plus className={`${isMobile ? 'h-4 w-4' : 'h-6 w-6'} mx-auto mb-1`} />
+          <Plus className="h-6 w-6 mx-auto mb-1" />
           <div className="text-xs">Ajouter</div>
         </div>
       </div>
@@ -304,15 +293,15 @@ export default function PlanningGrid({
   };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="md:grid md:grid-cols-8 md:gap-4 mb-8">
-        {/* Desktop Grid */}
-        <div className="hidden md:contents">
+    <div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-8 gap-4">
           {/* Header Row */}
           <div className="font-medium text-gray-700"></div>
           {daysToDisplay.map((day) => (
@@ -375,7 +364,7 @@ export default function PlanningGrid({
                       }`}
                       onClick={() => !isPastDay(day.index) && onSlotClick(day.index, mealType)}
                     >
-                      {renderSlotContent(meals, day.index, mealType, false)}
+                      {renderSlotContent(meals, day.index, mealType)}
                     </Card>
                   </DroppableSlot>
                 );
@@ -384,94 +373,19 @@ export default function PlanningGrid({
           ))}
         </div>
 
-        {/* Mobile Grid Layout */}
-        <div className="md:hidden">
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-7 gap-3 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
-              {/* Header Row */}
-              {daysToDisplay.map((day) => (
-                <div key={`header-${day.index}`} className={`text-center text-sm font-medium mb-3 w-48 relative ${
-                  isToday(day.index)
-                    ? 'text-orange-600'
-                    : isPastDay(day.index)
-                      ? 'text-gray-400'
-                      : 'text-gray-700'
-                }`}>
-                  {isToday(day.index) && (
-                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    </div>
-                  )}
-                  <div>{day.dayName}</div>
-                  <div className={`text-xs ${
-                    isToday(day.index)
-                      ? 'text-orange-500 font-semibold'
-                      : isPastDay(day.index)
-                        ? 'text-gray-400'
-                        : 'text-gray-500'
-                  }`}>
-                    {day.shortDate}
-                    {isToday(day.index) && (
-                      <span className="block text-orange-600 font-medium">Aujourd'hui</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {/* Meal Type Rows */}
-              {MEAL_TYPES.map((mealType) => (
-                daysToDisplay.map((day) => {
-                  const meals = getMealsForSlot(day.index, mealType);
-                  const slotId = `${day.index}-${mealType}`;
-                  return (
-                    <div key={slotId} className="w-48 py-2">
-                      <div className="text-xs font-medium text-gray-600 mb-1 px-1 ">
-                        {mealType}
-                      </div>
-                      <DroppableSlot
-                        slotId={slotId}
-                        isPastDay={isPastDay(day.index)}
-                      >
-                        <Card
-                          className={`p-2.5 transition-all duration-200 h-full ${
-                            isPastDay(day.index)
-                              ? 'opacity-50 cursor-not-allowed bg-gray-50'
-                              : 'cursor-pointer hover:shadow-md'
-                          } ${
-                            meals.length > 0
-                              ? 'border-solid border-orange-200 bg-orange-50/50'
-                              : 'border-dashed border-gray-300 hover:border-orange-300'
-                          } ${
-                            isToday(day.index) && meals.length === 0
-                              ? 'ring-2 ring-orange-200 bg-orange-25'
-                              : ''
-                          }`}
-                          onClick={() => !isPastDay(day.index) && onSlotClick(day.index, mealType)}
-                        >
-                          {renderSlotContent(meals, day.index, mealType, true)}
-                        </Card>
-                      </DroppableSlot>
-                    </div>
-                  );
-                })
-              ))}
+        <DragOverlay>
+          {activeMeal ? (
+            <div className="bg-white rounded border border-orange-200 p-2 shadow-lg transform rotate-1 scale-105">
+              <div className="font-medium text-gray-900 text-xs">
+                {activeMeal.recipe?.title || 'Recette supprimée'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                📋 Déplacement...
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <DragOverlay>
-        {activeMeal ? (
-          <div className="bg-white rounded border border-orange-200 p-2 shadow-lg transform rotate-1 scale-105">
-            <div className="font-medium text-gray-900 text-xs">
-              {activeMeal.recipe?.title || 'Recette supprimée'}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              📋 Déplacement...
-            </div>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }
