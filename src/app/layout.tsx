@@ -19,6 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "My Little Cook",
   description: "Application de planification de repas collaborative",
+  icons: {
+    apple: "/logo_carotte.png",
+  },
 };
 
 export default function RootLayout({

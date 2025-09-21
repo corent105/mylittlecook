@@ -11,16 +11,13 @@ import { useState, useEffect } from "react";
 export function Header() {
   const [isHomePage, setIsHomePage] = useState(false);
 
-
   const { data: session, status } = useSession();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-
-  
-
 
   const handleLinkClick = () => {
     setIsPopoverOpen(false);
   };
+  
   useEffect(() => {
     setIsHomePage(window.location.pathname === '/');
   }, []);
@@ -38,11 +35,13 @@ export function Header() {
     : 'U';
   return (
     <header className="border-b bg-white sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link href="/" className="flex items-center space-x-2">
-          <ChefHat className="h-8 w-8 text-orange-600" />
+      <div className="container mx-auto px-4 py-1 flex justify-between items-center">
+        <Link href="/" className="flex items-center space-x-2 ">
+          {/*<ChefHat className="h-8 w-8 text-orange-600" />*/}
+          
+          <img src="/logo_carotte.png" alt="Logo" className="size-24 " />
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            <span className="hidden sm:inline">My Little Cook</span>
+            <span className="hidden sm:inline">My Little Cook</span>  
             <span className="sm:hidden">MLC</span>
           </h1>
         </Link>

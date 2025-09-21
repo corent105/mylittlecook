@@ -39,10 +39,10 @@ export default function Home() {
       <nav className="container mx-auto px-6 py-6">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
-            <ChefHat className="h-8 w-8 text-orange-600" />
-            <span className="text-2xl font-bold text-slate-800">My Little Cook</span>
+            <img src="/logo_carotte.png" alt="Logo" className="md:size-34 size-24 " />
+            <span className="sm:text-4xl text-2xl font-bold text-slate-800">My Little Cook</span>
           </Link>
-          <div className="flex items-center space-x-4">
+          <div className="flex  space-x-4 mt-2 mb-auto">
             {session?.user ? (
               <Link href="/planning">
                 <Button 
