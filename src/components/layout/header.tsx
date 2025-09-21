@@ -7,9 +7,11 @@ import { ChefHat, LogOut, User, Settings, Menu, Calendar, List, ShoppingCart } f
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export function Header() {
-  const [isHomePage, setIsHomePage] = useState(false);
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
 
   const { data: session, status } = useSession();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -17,10 +19,6 @@ export function Header() {
   const handleLinkClick = () => {
     setIsPopoverOpen(false);
   };
-  
-  useEffect(() => {
-    setIsHomePage(window.location.pathname === '/');
-  }, []);
 
   // Ne pas afficher le header sur la page d'accueil
   if (isHomePage) {
