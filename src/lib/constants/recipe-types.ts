@@ -19,7 +19,7 @@ export const RECIPE_TYPES = {
   },
   MAIN_COURSE: {
     value: 'MAIN_COURSE',
-    label: 'Plat principal',
+    label: 'Plat principal',
     emoji: '🍽️',
     color: 'bg-red-100 text-red-800 border-red-200'
   },

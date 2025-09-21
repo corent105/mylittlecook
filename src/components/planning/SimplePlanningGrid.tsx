@@ -211,67 +211,69 @@ export default function SimplePlanningGrid({
     });
   };
 
-  const renderMealCard = (meal: any) => (
-    <DraggableMealCard key={meal.id} meal={meal} disabled={isMovingMeal}>
-      <div
-        className={`relative group bg-white rounded border border-orange-100 p-2 shadow-sm hover:shadow-md transition-all ${
-          isMovingMeal ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
-        }`}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!isMovingMeal) {
-            onMealCardClick(meal, e);
-          }
-        }}
-      >
-        <div className="font-medium text-gray-900 mb-1 text-xs line-clamp-1">
-          {meal.recipe?.title || 'Recette supprimée'}
-        </div>
+  const renderMealCard = (meal: any) => {
+    // Mapping des types de repas
+    const mealTypeLabels: Record<string, string> = {
+      'BREAKFAST': 'Petit-déj',
+      'LUNCH': 'Déjeuner',
+      'DINNER': 'Dîner'
+    };
 
-        <div className="space-y-1">
-          {/* Recipe Types */}
-          {meal.recipe?.types && meal.recipe.types.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {meal.recipe.types.slice(0, 2).map((recipeType: any) => (
-                <RecipeTypeBadge
-                  key={recipeType.id}
-                  type={recipeType.type as keyof typeof RECIPE_TYPES}
-                  size="sm"
-                />
-              ))}
-              {meal.recipe.types.length > 2 && (
-                <span className="text-xs text-gray-500 bg-gray-100 px-1 py-0.5 rounded">
-                  +{meal.recipe.types.length - 2}
-                </span>
-              )}
+    return (
+      <DraggableMealCard key={meal.id} meal={meal} disabled={isMovingMeal}>
+        <div
+          className={`relative group bg-white rounded border border-orange-100 shadow-sm hover:shadow-md transition-all ${
+            isMovingMeal ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isMovingMeal) {
+              onMealCardClick(meal, e);
+            }
+          }}
+        >
+          {/* Photo de la recette si existante */}
+          {meal.recipe?.imageUrl && (
+            <div className="w-full h-20 mb-2 overflow-hidden rounded-t">
+              <img
+                src={meal.recipe.imageUrl}
+                alt={meal.recipe.title}
+                className="w-full h-full object-cover"
+              />
             </div>
           )}
 
-          {/* Recipe Info */}
-          <div className="flex items-center space-x-1 text-xs text-gray-500">
-            {meal.recipe?.prepTime && (
-              <span className="bg-orange-100 px-1 py-0.5 rounded text-xs">
-                {meal.recipe.prepTime}min
+          <div className={`${meal.recipe?.imageUrl ? 'p-2' : 'p-2'}`}>
+            {/* Titre de la recette */}
+            <div className="font-medium text-gray-900 mb-2 text-xs line-clamp-2">
+              {meal.recipe?.title || 'Recette supprimée'}
+            </div>
+
+            {/* Type de repas et nombre de personnes */}
+            <div className="flex items-center justify-between text-xs">
+              
+                {meal.recipe.types.slice(0, 2).map((recipeType: any) => (
+                  <RecipeTypeBadge
+                    key={recipeType.id}
+                    type={recipeType.type as keyof typeof RECIPE_TYPES}
+                    size="sm"
+                  />
+                ))}
+              
+              <span className="bg-green-100 px-2 py-1 rounded text-green-700 flex items-center font-medium">
+                <Users className="h-3 w-3 mr-1" />
+                {meal.mealUserAssignments?.length || 0}
               </span>
-            )}
-            <span className="bg-green-100 px-1 py-0.5 rounded text-xs flex items-center">
-              <Users className="h-2.5 w-2.5 mr-0.5" />
-              {meal.mealUserAssignments?.length || 0}
-            </span>
-            {meal.cookResponsible && (
-              <span className="bg-yellow-100 px-1 py-0.5 rounded text-xs flex items-center">
-                👨‍🍳 {meal.cookResponsible.pseudo}
-              </span>
-            )}
+            </div>
+          </div>
+
+          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Edit className="h-3 w-3 text-gray-400" />
           </div>
         </div>
-
-        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Edit className="h-3 w-3 text-gray-400" />
-        </div>
-      </div>
-    </DraggableMealCard>
-  );
+      </DraggableMealCard>
+    );
+  };
 
   const renderSlotContent = (meals: any[], dayIndex: number, mealType: MealType) => {
     if (meals.length > 0) {
