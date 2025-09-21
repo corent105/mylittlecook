@@ -12,11 +12,9 @@ import { RECIPE_TYPES } from '@/lib/constants/recipe-types';
 import { MealType as PrismaMealType } from '@prisma/client';
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 import RecipeSelectionModal from "./RecipeSelectionModal";
+import { DAYS_FRENCH, MEAL_TYPES_FRENCH, type MealTypeFrench } from "@/lib/constants/calendar";
 
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
-
-type MealType = typeof MEAL_TYPES[number];
+type MealType = MealTypeFrench;
 
 interface MealPlanModalProps {
   isOpen: boolean;
@@ -38,8 +36,6 @@ interface MealPlanModalProps {
   // Communs
   popupSelectedMealUsers: string[];
   setPopupSelectedMealUsers: (users: string[]) => void;
-  cookResponsibleId: string;
-  setCookResponsibleId: (id: string) => void;
   mealUsers: any[];
   isLoading?: boolean;
 }
@@ -58,8 +54,6 @@ export default function MealPlanModal({
   weekStart,
   popupSelectedMealUsers,
   setPopupSelectedMealUsers,
-  cookResponsibleId,
-  setCookResponsibleId,
   mealUsers,
   isLoading = false
 }: MealPlanModalProps) {
@@ -188,7 +182,7 @@ export default function MealPlanModal({
 
   const getModalTitle = () => {
     if (mode === 'add') {
-      return `Ajouter une recette - ${selectedSlot ? `${DAYS[selectedSlot.day]} ${selectedSlot.mealType}` : ''}`;
+      return `Ajouter une recette - ${selectedSlot ? `${DAYS_FRENCH[selectedSlot.day]} ${selectedSlot.mealType}` : ''}`;
     }
     return 'Modifier le repas';
   };
@@ -197,7 +191,7 @@ export default function MealPlanModal({
     if (mode === 'edit' && editingMealPlan) {
       const mealDate = new Date(editingMealPlan.mealDate);
       const dayOfWeek = mealDate.getDay() === 0 ? 6 : mealDate.getDay() - 1; // Convert Sunday=0 to Monday=0 format
-      return `${DAYS[dayOfWeek]} ${getMealTypeLabel(editingMealPlan.mealType)}`;
+      return `${DAYS_FRENCH[dayOfWeek]} ${getMealTypeLabel(editingMealPlan.mealType)}`;
     }
     return null;
   };
@@ -269,11 +263,10 @@ export default function MealPlanModal({
                     <Button
                       key={mealUser.id}
                       size="sm"
-                      variant={cookResponsibleId === mealUser.id ? "default" : "outline"}
+                      variant="outline"
                       onClick={() => {
-                        setCookResponsibleId(cookResponsibleId === mealUser.id ? '' : mealUser.id);
+                        // Cook selection disabled for now
                       }}
-                      className={cookResponsibleId === mealUser.id ? "bg-orange-600 hover:bg-orange-700" : ""}
                     >
                       👨‍🍳 {mealUser.pseudo}
                     </Button>

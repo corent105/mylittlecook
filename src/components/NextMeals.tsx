@@ -8,8 +8,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import RecipeTypeBadge from "@/components/recipe/RecipeTypeBadge";
 import { RECIPE_TYPES } from "@/lib/constants/recipe-types";
-
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+import { DAYS_FRENCH } from "@/lib/constants/calendar";
 
 interface NextMealsProps {
   selectedMealUsers: string[];
@@ -95,7 +94,7 @@ export default function NextMeals({ selectedMealUsers }: NextMealsProps) {
 
           allMeals.push({
             ...meal,
-            dayName: DAYS[dayOfWeek],
+            dayName: DAYS_FRENCH[dayOfWeek],
             mealTypeLabel: mealTypeInfo.label,
             date: new Date(mealDate),
             mealDateTime: mealDateTime.getTime()

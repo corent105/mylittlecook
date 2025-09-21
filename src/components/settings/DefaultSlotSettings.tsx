@@ -7,7 +7,8 @@ import { Calendar, Clock, Copy, RotateCcw, Users, ChefHat, Plus, Settings } from
 import { api } from "@/trpc/react";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
 import { MealType } from "@prisma/client";
-import { DAYS_OF_WEEK, MEAL_TYPES_LABELS } from "@/types/default-slot-settings";
+import { MEAL_TYPES_LABELS } from "@/types/default-slot-settings";
+import { DAYS_FRENCH } from "@/lib/constants/calendar";
 import DefaultSlotConfigModal from './DefaultSlotConfigModal';
 
 const MEAL_TYPES_ARRAY: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER'];
@@ -80,7 +81,7 @@ export default function DefaultSlotSettings() {
 
       showAlert(
         'Jour copié',
-        `Les paramètres du ${DAYS_OF_WEEK[copySourceDay]} ont été copiés vers le ${DAYS_OF_WEEK[targetDay]}.`,
+        `Les paramètres du ${DAYS_FRENCH[copySourceDay]} ont été copiés vers le ${DAYS_FRENCH[targetDay]}.`,
         'success'
       );
     } catch (error) {
@@ -256,7 +257,7 @@ export default function DefaultSlotSettings() {
           <div className="hidden md:contents">
             {/* Header Row */}
             <div className="font-medium text-gray-700"></div>
-            {DAYS_OF_WEEK.map((day, index) => (
+            {DAYS_FRENCH.map((day, index) => (
               <div key={day} className="text-center font-medium text-gray-700 py-2 relative">
                 {day}
                 {copySourceDay !== null && copySourceDay !== index && (
@@ -266,7 +267,7 @@ export default function DefaultSlotSettings() {
                     onClick={() => handleCopyDay(index)}
                     disabled={copyDayMutation.isPending}
                     className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                    title={`Coller les paramètres du ${DAYS_OF_WEEK[copySourceDay]}`}
+                    title={`Coller les paramètres du ${DAYS_FRENCH[copySourceDay]}`}
                   >
                     ↓
                   </Button>
@@ -280,7 +281,7 @@ export default function DefaultSlotSettings() {
                 <div className="flex items-center justify-between font-medium text-gray-700 py-4">
                   <span>{MEAL_TYPES_LABELS[mealType]}</span>
                 </div>
-                {DAYS_OF_WEEK.map((_, dayIndex) => (
+                {DAYS_FRENCH.map((_, dayIndex) => (
                   <div key={`${dayIndex}-${mealType}`} className="relative">
                     {renderSlotCard(dayIndex, mealType)}
                     {/* Copy button for each day */}
@@ -309,7 +310,7 @@ export default function DefaultSlotSettings() {
             <div className="overflow-x-auto">
               <div className="grid grid-cols-7 gap-3 px-4 pb-4 pt-2" style={{ width: 'max-content' }}>
                 {/* Header Row */}
-                {DAYS_OF_WEEK.map((day, dayIndex) => (
+                {DAYS_FRENCH.map((day, dayIndex) => (
                   <div key={`header-${dayIndex}`} className="text-center text-sm font-medium text-gray-700 mb-3 w-48 relative">
                     {day}
                     {copySourceDay !== null && copySourceDay !== dayIndex && (
@@ -319,7 +320,7 @@ export default function DefaultSlotSettings() {
                         onClick={() => handleCopyDay(dayIndex)}
                         disabled={copyDayMutation.isPending}
                         className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 h-5 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                        title={`Coller les paramètres du ${DAYS_OF_WEEK[copySourceDay]}`}
+                        title={`Coller les paramètres du ${DAYS_FRENCH[copySourceDay]}`}
                       >
                         ↓
                       </Button>
@@ -329,7 +330,7 @@ export default function DefaultSlotSettings() {
 
                 {/* Meal Type Rows */}
                 {MEAL_TYPES_ARRAY.map((mealType) => (
-                  DAYS_OF_WEEK.map((_, dayIndex) => (
+                  DAYS_FRENCH.map((_, dayIndex) => (
                     <div key={`${dayIndex}-${mealType}`} className="w-48 py-2 relative">
                       <div className="text-xs font-medium text-gray-600 mb-1 px-1">
                         {MEAL_TYPES_LABELS[mealType]}

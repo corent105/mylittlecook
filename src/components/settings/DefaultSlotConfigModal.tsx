@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Users, ChefHat, Clock } from "lucide-react";
 import { MealType } from "@prisma/client";
-import { DAYS_OF_WEEK, MEAL_TYPES_LABELS } from "@/types/default-slot-settings";
+import { MEAL_TYPES_LABELS } from "@/types/default-slot-settings";
+import { DAYS_FRENCH } from "@/lib/constants/calendar";
 
 interface DefaultSlotConfigModalProps {
   isOpen: boolean;
@@ -77,7 +78,7 @@ export default function DefaultSlotConfigModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-orange-600" />
-            Configuration par défaut - {DAYS_OF_WEEK[selectedSlot.day]} {MEAL_TYPES_LABELS[selectedSlot.mealType]}
+            Configuration par défaut - {DAYS_FRENCH[selectedSlot.day]} {MEAL_TYPES_LABELS[selectedSlot.mealType]}
           </DialogTitle>
         </DialogHeader>
 

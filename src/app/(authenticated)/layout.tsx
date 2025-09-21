@@ -2,7 +2,6 @@
 
 import { ReactNode } from "react";
 import { useSession } from "next-auth/react";
-import { Header } from "@/components/layout/header";
 import { useRouter } from "next/navigation";
 
 export default function AuthenticatedLayout({

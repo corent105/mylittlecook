@@ -43,16 +43,6 @@ export interface DefaultSlotSettingsMap {
   [key: string]: string[]; // Key format: "dayOfWeek-mealType", Value: array of mealUserIds
 }
 
-export const DAYS_OF_WEEK = [
-  'Lundi',
-  'Mardi',
-  'Mercredi',
-  'Jeudi',
-  'Vendredi',
-  'Samedi',
-  'Dimanche'
-] as const;
-
 export const MEAL_TYPES_LABELS = {
   BREAKFAST: 'Petit-déjeuner',
   LUNCH: 'Déjeuner',

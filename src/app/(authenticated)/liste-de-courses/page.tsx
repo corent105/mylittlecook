@@ -79,11 +79,10 @@ export default function ShoppingListPage() {
     }
   }, [mealUsers, selectedMealUsers.length]);
 
-  const { data: shoppingList = [], isLoading } = api.mealPlan.generateShoppingList.useQuery({
+  const { data: shoppingList = [], isLoading } = api.shoppingList.generateShoppingList.useQuery({
     mealUserIds: selectedMealUsers,
     startDate,
     endDate,
-    cookResponsibleId: cookFilter === 'all' ? undefined : cookFilter,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
@@ -98,16 +97,16 @@ export default function ShoppingListPage() {
   });
 
   // Filter meal plans by cook responsible for recipes display
-  const filteredMealPlans = weekMealPlans.filter(mealPlan => {
+  const filteredMealPlans = weekMealPlans.filter((mealPlan: any) => {
     if (cookFilter === 'all') return true;
-    return mealPlan.cookResponsibleId === cookFilter;
+    // Use the first meal user assignment as the cook
+    return mealPlan.mealUserAssignments?.[0]?.mealUserId === cookFilter;
   });
 
   // Get available cooks for filtering
   const { data: availableCooks = [] } = api.mealPlan.getCooksForWeek.useQuery({
     mealUserIds: selectedMealUsers,
     startDate,
-    endDate,
   }, {
     enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
@@ -168,7 +167,7 @@ export default function ShoppingListPage() {
   // Group recipes by day and meal type with actual dates
   const MEAL_TYPES = { BREAKFAST: 'Petit-déjeuner', LUNCH: 'Déjeuner', DINNER: 'Dîner' };
 
-  const groupedRecipes = filteredMealPlans.reduce((acc, mealPlan) => {
+  const groupedRecipes = filteredMealPlans.reduce((acc, mealPlan: any) => {
     if (!mealPlan.recipe) return acc;
 
     const mealDate = new Date(mealPlan.mealDate);
@@ -214,7 +213,7 @@ export default function ShoppingListPage() {
     }, {} as Record<string, Array<any>>);
 
   const uniqueRecipes = Array.from(
-    new Map(filteredMealPlans.filter(mp => mp.recipe).map(mp => [mp.recipe!.id, mp.recipe!])).values()
+    new Map(filteredMealPlans.filter((mp: any) => mp.recipe).map((mp: any) => [mp.recipe!.id, mp.recipe!])).values()
   );
 
   const exportToText = () => {
@@ -230,9 +229,9 @@ export default function ShoppingListPage() {
     const content = [
       `# Liste de courses - ${formatDateRange()}`,
       '',
-      ...Object.entries(groupedIngredients).map(([category, items]) => [
+      ...Object.entries(groupedIngredients).map(([category, items]: [string, any]) => [
         `## ${category}`,
-        ...items.map(item => {
+        ...(items as any[]).map((item: any) => {
           const notes = item.notes.length > 0 ? ` (${item.notes.join(', ')})` : '';
           return `- ${item.ingredient.name}: ${item.totalQuantity} ${item.ingredient.unit}${notes}`;
         }),
@@ -264,9 +263,9 @@ export default function ShoppingListPage() {
     const content = [
       `Liste de courses - ${formatDateRange()}`,
       '',
-      ...Object.entries(groupedIngredients).map(([category, items]) => [
+      ...Object.entries(groupedIngredients).map(([category, items]: [string, any]) => [
         `${category}:`,
-        ...items.map(item => {
+        ...(items as any[]).map((item: any) => {
           const notes = item.notes.length > 0 ? ` (${item.notes.join(', ')})` : '';
           return `• ${item.ingredient.name}: ${item.totalQuantity} ${item.ingredient.unit}${notes}`;
         }),

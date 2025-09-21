@@ -17,11 +17,9 @@ import {
   useDroppable,
 } from '@dnd-kit/core';
 import { useState } from 'react';
+import {DAYS_ISO, MEAL_TYPES_FRENCH, type MealTypeFrench} from '@/lib/constants/calendar';
 
-const DAYS_OF_WEEK = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
-
-type MealType = typeof MEAL_TYPES[number];
+type MealType = MealTypeFrench;
 
 interface SimplePlanningGridProps {
   mealPlan: any[];
@@ -160,7 +158,7 @@ export default function SimplePlanningGrid({
   const getDaysToDisplay = () => {
     return Array.from({ length: 7 }, (_, index) => {
       const date = getDateForDay(index);
-      const dayName = DAYS_OF_WEEK[date.getDay()];
+      const dayName = DAYS_ISO[date.getDay()];
       return {
         index,
         date,
@@ -343,7 +341,7 @@ export default function SimplePlanningGrid({
           ))}
 
           {/* Meal Rows */}
-          {MEAL_TYPES.map((mealType) => (
+          {MEAL_TYPES_FRENCH.map((mealType) => (
             <div key={mealType} className="contents">
               <div className="flex items-center font-medium text-gray-700 py-4">
                 {mealType}

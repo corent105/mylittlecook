@@ -34,7 +34,6 @@ export default function PlanningPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [popupSelectedMealUsers, setPopupSelectedMealUsers] = useState<string[]>([]);
-  const [cookResponsibleId, setCookResponsibleId] = useState<string>('');
   const [editingMealPlan, setEditingMealPlan] = useState<any | null>(null);
   const [editSelectedRecipe, setEditSelectedRecipe] = useState<any | null>(null);
 
@@ -81,7 +80,7 @@ export default function PlanningPage() {
   });
 
   // Filter meal plans based on current filters
-  const mealPlan = allMealPlans.filter(meal => {
+  const mealPlan = allMealPlans.filter((meal: any) => {
     // Filter by meal users (check if any of the meal's users are in the filter)
     if (filterMealUsers.length > 0) {
       const mealUserIds = meal.mealUserAssignments?.map((assignment: any) => assignment.mealUserId) || [];
@@ -109,7 +108,7 @@ export default function PlanningPage() {
   useEffect(() => {
     if (mealPlan.length > 0) {
       console.log('✅ Meal plan loaded:', mealPlan.length, 'items');
-      mealPlan.forEach(mp => {
+      mealPlan.forEach((mp: any) => {
         const mpDate = new Date(mp.mealDate);
         const mpDayOfWeek = mpDate.getDay() === 0 ? 6 : mpDate.getDay() - 1;
         console.log(`  - ${mp.recipe?.title || 'No recipe'} | Date: ${mpDate.toDateString()} | Day: ${mpDayOfWeek} | Type: ${mp.mealType}`);
@@ -124,7 +123,7 @@ export default function PlanningPage() {
   
   
   // Mutations
-  const addMealMutation = api.mealPlan.addMealToSlot.useMutation({
+  const addMealMutation = api.mealPlanMutation.addMealToSlot.useMutation({
     onSuccess: () => {
       // Invalidate and refetch
       const weekEnd = new Date(weekStart);
@@ -137,7 +136,7 @@ export default function PlanningPage() {
     },
   });
 
-  const removeMealMutation = api.mealPlan.removeMealFromSlot.useMutation({
+  const removeMealMutation = api.mealPlanMutation.removeMealFromSlot.useMutation({
     onSuccess: () => {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
@@ -149,7 +148,7 @@ export default function PlanningPage() {
     },
   });
 
-  const moveMealMutation = api.mealPlan.moveMealPlan.useMutation({
+  const moveMealMutation = api.mealPlanMutation.moveMealPlan.useMutation({
     onMutate: async ({ mealPlanId, newMealDate, newMealType }) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
       const weekEnd = new Date(weekStart);
@@ -265,15 +264,15 @@ export default function PlanningPage() {
 
       // Initialize with default cook responsible
       if (defaultSetting.defaultCookResponsibleId) {
-        setCookResponsibleId(defaultSetting.defaultCookResponsibleId);
+        // setCookResponsibleId(defaultSetting.defaultCookResponsibleId);
         console.log('Initialized with default cook responsible:', defaultSetting.defaultCookResponsibleId);
       } else {
-        setCookResponsibleId('');
+        // setCookResponsibleId('');
       }
     } else {
       // No default setting found, start with empty values
       setPopupSelectedMealUsers([]);
-      setCookResponsibleId('');
+      // setCookResponsibleId('');
       console.log('No default setting found, starting with empty values');
     }
   };
@@ -285,7 +284,7 @@ export default function PlanningPage() {
     setEditSelectedRecipe(meal.recipe);
     // Initialize with current meal users and cook responsible
     setPopupSelectedMealUsers(meal.mealUserAssignments?.map((assignment: any) => assignment.mealUserId) || []);
-    setCookResponsibleId(meal.cookResponsible?.id || '');
+    // setCookResponsibleId(meal.cookResponsible?.id || '');
   };
 
 
@@ -310,7 +309,6 @@ export default function PlanningPage() {
       mealDate,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
       recipeId: recipe.id,
-      cookResponsibleId: cookResponsibleId || undefined,
     };
     
     console.log('Adding recipe to slot:', {
@@ -328,7 +326,7 @@ export default function PlanningPage() {
       setSelectedSlot(null);
       setSearchQuery('');
       setPopupSelectedMealUsers([]);
-      setCookResponsibleId('');
+      // setCookResponsibleId('');
     } catch (error) {
       console.error('Error adding meal:', error);
       console.error('Mutation data that failed:', mutationData);
@@ -354,7 +352,7 @@ export default function PlanningPage() {
         setEditingMealPlan(null);
         setEditSelectedRecipe(null);
         setPopupSelectedMealUsers([]);
-        setCookResponsibleId('');
+        // setCookResponsibleId('');
       }
     } catch (error) {
       console.error('Error removing meal:', error);
@@ -382,14 +380,13 @@ export default function PlanningPage() {
         mealDate: editMealDate,
         mealType: editingMealPlan.mealType as any,
         recipeId: editSelectedRecipe.id,
-        cookResponsibleId: cookResponsibleId || undefined,
       });
 
       // Close edit dialog
       setEditingMealPlan(null);
       setEditSelectedRecipe(null);
       setPopupSelectedMealUsers([]);
-      setCookResponsibleId('');
+      // setCookResponsibleId('');
       setSearchQuery('');
     } catch (error) {
       console.error('Error updating meal plan:', error);
@@ -479,13 +476,12 @@ export default function PlanningPage() {
             setSelectedSlot(null);
             setSearchQuery('');
             setPopupSelectedMealUsers([]);
-            setCookResponsibleId('');
+            // setCookResponsibleId('');
           }}
           selectedSlot={selectedSlot}
           popupSelectedMealUsers={popupSelectedMealUsers}
           setPopupSelectedMealUsers={setPopupSelectedMealUsers}
-          cookResponsibleId={cookResponsibleId}
-          setCookResponsibleId={setCookResponsibleId}
+          // setCookResponsibleId={setCookResponsibleId}
           mealUsers={mealUsers}
           onAddRecipe={addRecipeToSlot}
           isLoading={addMealMutation.isPending}
@@ -499,7 +495,7 @@ export default function PlanningPage() {
             setEditingMealPlan(null);
             setEditSelectedRecipe(null);
             setPopupSelectedMealUsers([]);
-            setCookResponsibleId('');
+            // setCookResponsibleId('');
             setSearchQuery('');
           }}
           editingMealPlan={editingMealPlan}
@@ -507,8 +503,7 @@ export default function PlanningPage() {
           setEditSelectedRecipe={setEditSelectedRecipe}
           popupSelectedMealUsers={popupSelectedMealUsers}
           setPopupSelectedMealUsers={setPopupSelectedMealUsers}
-          cookResponsibleId={cookResponsibleId}
-          setCookResponsibleId={setCookResponsibleId}
+          // setCookResponsibleId={setCookResponsibleId}
           mealUsers={mealUsers}
           onUpdate={updateMealPlan}
           onDelete={removeMealFromSlot}
