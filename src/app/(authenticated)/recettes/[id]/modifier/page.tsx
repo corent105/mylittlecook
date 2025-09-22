@@ -120,16 +120,21 @@ export default function EditRecipePage() {
       return;
     }
 
+    const processedMinimalServings = form.minimalServings && form.minimalServings.trim() !== '' ? parseInt(form.minimalServings) : null;
+
+    console.log('Form minimalServings:', form.minimalServings);
+    console.log('Processed minimalServings:', processedMinimalServings);
+
     const recipeData = {
       id: recipeId,
       title: form.title,
       description: form.description || undefined,
       content: form.content || undefined,
       imageUrl: form.imageUrl || undefined,
-      prepTime: form.prepTime ? parseInt(form.prepTime) : undefined,
-      cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
-      servings: form.servings ? parseInt(form.servings) : undefined,
-      minimalServings: form.minimalServings ? parseInt(form.minimalServings) : undefined,
+      prepTime: form.prepTime && form.prepTime.trim() !== '' ? parseInt(form.prepTime) : null,
+      cookTime: form.cookTime && form.cookTime.trim() !== '' ? parseInt(form.cookTime) : null,
+      servings: form.servings && form.servings.trim() !== '' ? parseInt(form.servings) : null,
+      minimalServings: processedMinimalServings,
       ingredients: form.ingredients.map(ing => ({
         id: ing.id,
         name: ing.name,
