@@ -35,6 +35,7 @@ interface RecipeForm {
   prepTime: string;
   cookTime: string;
   servings: string;
+  minimalServings: string;
   ingredients: RecipeIngredient[];
   types: string[];
 }
@@ -60,6 +61,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
     prepTime: '',
     cookTime: '',
     servings: '',
+    minimalServings: '',
     ingredients: [],
     types: [],
   });
@@ -127,6 +129,7 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
         prepTime: form.prepTime ? parseInt(form.prepTime) : undefined,
         cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
         servings: form.servings ? parseInt(form.servings) : undefined,
+        minimalServings: form.minimalServings ? parseInt(form.minimalServings) : undefined,
         ingredients: validIngredients.length > 0 ? validIngredients : undefined,
         types: form.types as RecipeCategoryType[],
       });
@@ -378,6 +381,22 @@ Ajoutez ici vos notes personnelles, astuces ou variations de la recette.`,
                       type="number"
                       min="1"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Minimum à acheter
+                    </label>
+                    <Input
+                      value={form.minimalServings}
+                      onChange={(e) => updateForm('minimalServings', e.target.value)}
+                      placeholder="4"
+                      type="number"
+                      min="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Nombre minimum de portions à acheter (ex: quiche pour 4 même si 1 seule portion nécessaire)
+                    </p>
                   </div>
                 </div>
               </Card>

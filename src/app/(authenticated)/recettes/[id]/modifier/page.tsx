@@ -37,6 +37,7 @@ interface RecipeForm {
   prepTime: string;
   cookTime: string;
   servings: string;
+  minimalServings: string;
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   types: string[];
@@ -54,6 +55,7 @@ export default function EditRecipePage() {
     prepTime: '',
     cookTime: '',
     servings: '',
+    minimalServings: '',
     ingredients: [],
     steps: [],
     types: []
@@ -86,6 +88,7 @@ export default function EditRecipePage() {
         prepTime: recipe.prepTime?.toString() || '',
         cookTime: recipe.cookTime?.toString() || '',
         servings: recipe.servings?.toString() || '',
+        minimalServings: recipe.minimalServings?.toString() || '',
         ingredients: recipe.ingredients?.map((ing: any) => ({
           id: ing.id,
           name: ing.ingredient?.name || ing.name || '',
@@ -126,6 +129,7 @@ export default function EditRecipePage() {
       prepTime: form.prepTime ? parseInt(form.prepTime) : undefined,
       cookTime: form.cookTime ? parseInt(form.cookTime) : undefined,
       servings: form.servings ? parseInt(form.servings) : undefined,
+      minimalServings: form.minimalServings ? parseInt(form.minimalServings) : undefined,
       ingredients: form.ingredients.map(ing => ({
         id: ing.id,
         name: ing.name,

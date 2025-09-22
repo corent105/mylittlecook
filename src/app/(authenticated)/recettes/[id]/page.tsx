@@ -24,12 +24,21 @@ export default function RecipePage() {
     id: recipeId,
   });
 
-  // Calculate adjusted quantities based on target servings
+  // Calculate adjusted quantities based on target servings and minimal servings
   const getAdjustedQuantity = (originalQuantity: number) => {
-    if (!targetServings || !recipe?.servings || recipe.servings === 0) {
+    if (!recipe?.servings || recipe.servings === 0) {
       return originalQuantity;
     }
-    const ratio = targetServings / recipe.servings;
+
+    // Determine the effective servings to use for calculation
+    let effectiveTargetServings = targetServings || recipe.servings;
+
+    // If minimalServings is set and the effective target is less than minimal, use minimal
+    if (recipe.minimalServings && effectiveTargetServings < recipe.minimalServings) {
+      effectiveTargetServings = recipe.minimalServings;
+    }
+
+    const ratio = effectiveTargetServings / recipe.servings;
     const adjustedQuantity = originalQuantity * ratio;
 
     // Round to reasonable precision
@@ -40,6 +49,20 @@ export default function RecipePage() {
     } else {
       return Math.round(adjustedQuantity); // Round to nearest integer for large quantities
     }
+  };
+
+  // Determine the effective servings being displayed
+  const getEffectiveServings = () => {
+    if (!recipe?.servings) return null;
+
+    let effectiveTargetServings = targetServings || recipe.servings;
+
+    // If minimalServings is set and the effective target is less than minimal, use minimal
+    if (recipe.minimalServings && effectiveTargetServings < recipe.minimalServings) {
+      effectiveTargetServings = recipe.minimalServings;
+    }
+
+    return effectiveTargetServings;
   };
 
   if (isLoading) {
@@ -184,16 +207,33 @@ export default function RecipePage() {
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold">Ingrédients</h3>
-                  {targetServings && targetServings !== recipe.servings && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
-                      Ajusté pour {targetServings} pers. (recette originale: {recipe.servings} pers.)
-                    </span>
-                  )}
+                  {(() => {
+                    const effectiveServings = getEffectiveServings();
+                    const wasAdjustedForMinimal = recipe.minimalServings &&
+                      (targetServings || recipe.servings || 0) < recipe.minimalServings;
+
+                    if (effectiveServings && effectiveServings !== recipe.servings) {
+                      return (
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
+                            Ajusté pour {effectiveServings} pers. (recette originale: {recipe.servings} pers.)
+                          </span>
+                          {wasAdjustedForMinimal && (
+                            <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
+                              Quantité minimale appliquée ({recipe.minimalServings} pers. min.)
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <div className="space-y-3">
                   {recipe.ingredients.map((recipeIngredient) => {
                     const adjustedQuantity = getAdjustedQuantity(recipeIngredient.quantity);
-                    const isAdjusted = targetServings && targetServings !== recipe.servings && recipeIngredient.quantity > 0;
+                    const effectiveServings = getEffectiveServings();
+                    const isAdjusted = effectiveServings && effectiveServings !== recipe.servings && recipeIngredient.quantity > 0;
 
                     return (
                       <div
@@ -237,11 +277,25 @@ export default function RecipePage() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="text-sm text-gray-500 text-center">
                     {recipe.ingredients.length} ingrédient{recipe.ingredients.length > 1 ? 's' : ''}
-                    {targetServings && targetServings !== recipe.servings && (
-                      <span className="block text-blue-600 mt-1">
-                        Quantités ajustées pour {targetServings} personne{targetServings > 1 ? 's' : ''}
-                      </span>
-                    )}
+                    {(() => {
+                      const effectiveServings = getEffectiveServings();
+                      const wasAdjustedForMinimal = recipe.minimalServings &&
+                        (targetServings || recipe.servings || 0) < recipe.minimalServings;
+
+                      if (effectiveServings && effectiveServings !== recipe.servings) {
+                        return (
+                          <span className="block text-blue-600 mt-1">
+                            Quantités ajustées pour {effectiveServings} personne{effectiveServings > 1 ? 's' : ''}
+                            {wasAdjustedForMinimal && (
+                              <span className="block text-orange-600 text-xs mt-1">
+                                (Minimum de {recipe.minimalServings} portions appliqué)
+                              </span>
+                            )}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </p>
                 </div>
               </Card>

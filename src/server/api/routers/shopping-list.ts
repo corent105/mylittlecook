@@ -40,7 +40,11 @@ export const shoppingListRouter = createTRPCRouter({
         },
         include: {
           recipe: {
-            include: {
+            select: {
+              id: true,
+              title: true,
+              servings: true,
+              minimalServings: true,
               ingredients: {
                 include: {
                   ingredient: {
@@ -73,7 +77,14 @@ export const shoppingListRouter = createTRPCRouter({
         if (!recipe) return;
         const recipeServings = recipe.servings || 1;
         const mealUserCount = mealPlan.mealUserAssignments.length;
-        const servingMultiplier = mealUserCount / recipeServings;
+
+        // Calculate effective servings considering minimalServings
+        let effectiveServings = mealUserCount;
+        if (recipe.minimalServings && effectiveServings < recipe.minimalServings) {
+          effectiveServings = recipe.minimalServings;
+        }
+
+        const servingMultiplier = effectiveServings / recipeServings;
 
         recipe.ingredients.forEach((ingredientData: any) => {
           const ingredient = ingredientData.ingredient || ingredientData;

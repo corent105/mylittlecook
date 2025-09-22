@@ -17,7 +17,8 @@
       "Bash(pnpm prisma generate:*)",
       "WebFetch(domain:docs.dndkit.com)",
       "Bash(wc:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

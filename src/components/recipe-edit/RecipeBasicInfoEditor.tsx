@@ -12,6 +12,7 @@ interface RecipeForm {
   prepTime: string;
   cookTime: string;
   servings: string;
+  minimalServings: string;
   types: string[];
 }
 
@@ -63,7 +64,7 @@ export default function RecipeBasicInfoEditor({
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">
               Préparation (min)
@@ -89,7 +90,9 @@ export default function RecipeBasicInfoEditor({
               min="1"
             />
           </div>
+        </div>
 
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1">
               Personnes
@@ -101,6 +104,22 @@ export default function RecipeBasicInfoEditor({
               type="number"
               min="1"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Minimum à acheter
+            </label>
+            <Input
+              value={form.minimalServings}
+              onChange={(e) => onFormUpdate('minimalServings', e.target.value)}
+              placeholder="4"
+              type="number"
+              min="1"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Nombre minimum de portions à acheter (ex: quiche pour 4 même si 1 seule portion nécessaire)
+            </p>
           </div>
         </div>
 
