@@ -35,19 +35,47 @@ export const mealPlanQueryRouter = createTRPCRouter({
       const latestWeekStart = new Date(requestEndDate);
       // Keep as is - we want weeks that start on or before our end date
 
+      // Pour éviter des requêtes complexes, on va d'abord récupérer l'ownerId des utilisateurs
+      const firstUser = await ctx.db.mealUser.findFirst({
+        where: { id: { in: input.mealUserIds } }
+      });
+
+      const ownerId = firstUser?.ownerId;
+
       const mealPlans = await ctx.db.mealPlan.findMany({
         where: {
           mealDate: {
             gte: requestStartDate,
             lte: requestEndDate
           },
-          mealUserAssignments: {
-            some: {
-              mealUserId: {
-                in: input.mealUserIds
+          OR: [
+            // Meal plans avec des utilisateurs assignés qui font partie des utilisateurs demandés
+            {
+              mealUserAssignments: {
+                some: {
+                  mealUserId: {
+                    in: input.mealUserIds
+                  }
+                }
               }
-            }
-          }
+            },
+            // Restes sans utilisateurs assignés dans le même foyer
+            ...(ownerId ? [{
+              isLeftover: true,
+              mealUserAssignments: {
+                none: {}
+              },
+              parentMealPlan: {
+                mealUserAssignments: {
+                  some: {
+                    mealUser: {
+                      ownerId: ownerId
+                    }
+                  }
+                }
+              }
+            }] : [])
+          ]
         },
         include: {
           recipe: {
@@ -64,7 +92,10 @@ export const mealPlanQueryRouter = createTRPCRouter({
             include: {
               mealUser: true
             }
-          }
+          },
+          cookResponsible: true,
+          parentMealPlan: true,
+          childMealPlans: true
         },
         orderBy: [
           { mealDate: 'asc' },
@@ -168,7 +199,10 @@ export const mealPlanQueryRouter = createTRPCRouter({
             include: {
               mealUser: true
             }
-          }
+          },
+          cookResponsible: true,
+          parentMealPlan: true,
+          childMealPlans: true
         }
       });
 
@@ -178,4 +212,138 @@ export const mealPlanQueryRouter = createTRPCRouter({
 
       return mealPlan;
     }),
+
+  getLeftoversForWeek: publicProcedure
+    .input(z.object({
+      mealUserIds: z.array(z.string()),
+      startDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (input.mealUserIds.length === 0) {
+        return [];
+      }
+
+      const requestStartDate = new Date(input.startDate);
+      requestStartDate.setUTCHours(0, 0, 0, 0);
+
+      const requestEndDate = new Date(requestStartDate);
+      requestEndDate.setUTCDate(requestEndDate.getUTCDate() + 6);
+      requestEndDate.setUTCHours(23, 59, 59, 999);
+
+      const leftoverMealPlans = await ctx.db.mealPlan.findMany({
+        where: {
+          mealDate: {
+            gte: requestStartDate,
+            lte: requestEndDate
+          },
+          isLeftover: true,
+          OR: [
+            // Restes sans utilisateurs assignés (disponibles pour tous)
+            {
+              mealUserAssignments: {
+                none: {}
+              }
+            },
+            // Restes avec des utilisateurs assignés qui font partie des utilisateurs demandés
+            {
+              mealUserAssignments: {
+                some: {
+                  mealUserId: {
+                    in: input.mealUserIds
+                  }
+                }
+              }
+            }
+          ]
+        },
+        include: {
+          recipe: {
+            include: {
+              types: true,
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          },
+          parentMealPlan: {
+            include: {
+              recipe: true,
+              mealUserAssignments: {
+                include: {
+                  mealUser: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: [
+          { mealDate: 'asc' },
+          { createdAt: 'asc' }
+        ]
+      });
+
+      return leftoverMealPlans;
+    }),
+
+  getAllLeftoversByCook: publicProcedure
+    .input(z.object({
+      cookResponsibleId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const where = {
+        isLeftover: true,
+        mealUserAssignments: {
+          none: {} // Pas d'utilisateurs assignés (portions en attente)
+        },
+        ...(input.cookResponsibleId && {
+          cookResponsibleId: input.cookResponsibleId
+        })
+      };
+
+      const leftoverMealPlans = await ctx.db.mealPlan.findMany({
+        where,
+        include: {
+          recipe: {
+            include: {
+              types: true,
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          },
+          cookResponsible: true,
+          parentMealPlan: {
+            include: {
+              recipe: true,
+              mealUserAssignments: {
+                include: {
+                  mealUser: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: [
+          { mealDate: 'desc' },
+          { createdAt: 'desc' }
+        ]
+      });
+
+      return leftoverMealPlans;
+    }),
+
 });

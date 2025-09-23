@@ -89,11 +89,18 @@ model MealPlan {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   recipeId            String?
-  cookResponsibleId   String?
+  cookResponsibleId   String               // Maintenant obligatoire
   mealDate            DateTime
+  mealPlanGroupId     String?              // Pour lier les meal plans du même groupe (plat principal + restes)
+  isLeftover          Boolean              @default(false) // Indique si c'est un reste
+  portionsConsumed    Int?                 // Nombre de portions réellement consommées dans ce meal plan
+  originalPortions    Int?                 // Nombre de portions original de la recette
   mealUserAssignments MealPlanAssignment[]
-  cookResponsible     MealUser?            @relation("CookResponsible", fields: [cookResponsibleId], references: [id])
+  cookResponsible     MealUser             @relation("CookResponsible", fields: [cookResponsibleId], references: [id])
   recipe              Recipe?              @relation(fields: [recipeId], references: [id])
+  // Relations pour le groupement des meal plans
+  parentMealPlan      MealPlan?            @relation("MealPlanGroup", fields: [mealPlanGroupId], references: [id])
+  childMealPlans      MealPlan[]           @relation("MealPlanGroup")
 
   @@map("meal_plans")
 }

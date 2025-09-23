@@ -34,6 +34,7 @@ export default function PlanningPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [popupSelectedMealUsers, setPopupSelectedMealUsers] = useState<string[]>([]);
+  const [cookResponsibleId, setCookResponsibleId] = useState<string>('');
   const [editingMealPlan, setEditingMealPlan] = useState<any | null>(null);
   const [editSelectedRecipe, setEditSelectedRecipe] = useState<any | null>(null);
 
@@ -79,10 +80,24 @@ export default function PlanningPage() {
     enabled: session?.user?.id !== undefined && mealUsers.length > 0
   });
 
+  // Récupérer tous les restes du cookResponsible filtré (ou tous si pas de filtre)
+  const { data: allLeftovers = [] } = api.mealPlan.getAllLeftoversByCook.useQuery({
+    cookResponsibleId: filterCookResponsible || undefined,
+  }, {
+    enabled: session?.user?.id !== undefined
+  });
+
+
+  // Combiner les meal plans de la semaine avec tous les restes (en évitant les doublons)
+  const allMealPlanIds = new Set(allMealPlans.map((m: any) => m.id));
+  const uniqueLeftovers = allLeftovers.filter((leftover: any) => !allMealPlanIds.has(leftover.id));
+  const combinedMealPlans = [...allMealPlans, ...uniqueLeftovers];
+
   // Filter meal plans based on current filters
-  const mealPlan = allMealPlans.filter((meal: any) => {
+  const mealPlan = combinedMealPlans.filter((meal: any) => {
     // Filter by meal users (check if any of the meal's users are in the filter)
-    if (filterMealUsers.length > 0) {
+    // Skip this filter for leftovers as they have no assignments and should be visible to all
+    if (filterMealUsers.length > 0 && !meal.isLeftover) {
       const mealUserIds = meal.mealUserAssignments?.map((assignment: any) => assignment.mealUserId) || [];
       const hasFilteredUser = mealUserIds.some((userId: string) => filterMealUsers.includes(userId));
       if (!hasFilteredUser) return false;
@@ -264,15 +279,15 @@ export default function PlanningPage() {
 
       // Initialize with default cook responsible
       if (defaultSetting.defaultCookResponsibleId) {
-        // setCookResponsibleId(defaultSetting.defaultCookResponsibleId);
+        setCookResponsibleId(defaultSetting.defaultCookResponsibleId);
         console.log('Initialized with default cook responsible:', defaultSetting.defaultCookResponsibleId);
       } else {
-        // setCookResponsibleId('');
+        setCookResponsibleId('');
       }
     } else {
       // No default setting found, start with empty values
       setPopupSelectedMealUsers([]);
-      // setCookResponsibleId('');
+      setCookResponsibleId('');
       console.log('No default setting found, starting with empty values');
     }
   };
@@ -284,13 +299,13 @@ export default function PlanningPage() {
     setEditSelectedRecipe(meal.recipe);
     // Initialize with current meal users and cook responsible
     setPopupSelectedMealUsers(meal.mealUserAssignments?.map((assignment: any) => assignment.mealUserId) || []);
-    // setCookResponsibleId(meal.cookResponsible?.id || '');
+    setCookResponsibleId(meal.cookResponsible?.id || '');
   };
 
 
   const addRecipeToSlot = async (recipe: { id: string; title: string }) => {
-    if (!selectedSlot || popupSelectedMealUsers.length === 0) {
-      console.log('No slot selected or no meal users selected');
+    if (!selectedSlot || popupSelectedMealUsers.length === 0 || !cookResponsibleId) {
+      console.log('No slot selected, no meal users selected, or no cook responsible selected');
       return;
     }
     
@@ -309,6 +324,7 @@ export default function PlanningPage() {
       mealDate,
       mealType: mealTypeMap[selectedSlot.mealType] as any,
       recipeId: recipe.id,
+      cookResponsibleId,
     };
     
     console.log('Adding recipe to slot:', {
@@ -326,7 +342,7 @@ export default function PlanningPage() {
       setSelectedSlot(null);
       setSearchQuery('');
       setPopupSelectedMealUsers([]);
-      // setCookResponsibleId('');
+      setCookResponsibleId('');
     } catch (error) {
       console.error('Error adding meal:', error);
       console.error('Mutation data that failed:', mutationData);
@@ -360,7 +376,7 @@ export default function PlanningPage() {
   };
 
   const updateMealPlan = async () => {
-    if (!editingMealPlan || !editSelectedRecipe || popupSelectedMealUsers.length === 0) {
+    if (!editingMealPlan || !editSelectedRecipe || popupSelectedMealUsers.length === 0 || !cookResponsibleId) {
       console.log('Cannot update meal plan: missing data');
       return;
     }
@@ -380,13 +396,14 @@ export default function PlanningPage() {
         mealDate: editMealDate,
         mealType: editingMealPlan.mealType as any,
         recipeId: editSelectedRecipe.id,
+        cookResponsibleId,
       });
 
       // Close edit dialog
       setEditingMealPlan(null);
       setEditSelectedRecipe(null);
       setPopupSelectedMealUsers([]);
-      // setCookResponsibleId('');
+      setCookResponsibleId('');
       setSearchQuery('');
     } catch (error) {
       console.error('Error updating meal plan:', error);
@@ -476,12 +493,13 @@ export default function PlanningPage() {
             setSelectedSlot(null);
             setSearchQuery('');
             setPopupSelectedMealUsers([]);
-            // setCookResponsibleId('');
+            setCookResponsibleId('');
           }}
           selectedSlot={selectedSlot}
           popupSelectedMealUsers={popupSelectedMealUsers}
           setPopupSelectedMealUsers={setPopupSelectedMealUsers}
-          // setCookResponsibleId={setCookResponsibleId}
+          cookResponsibleId={cookResponsibleId}
+          setCookResponsibleId={setCookResponsibleId}
           mealUsers={mealUsers}
           onAddRecipe={addRecipeToSlot}
           isLoading={addMealMutation.isPending}
@@ -495,7 +513,7 @@ export default function PlanningPage() {
             setEditingMealPlan(null);
             setEditSelectedRecipe(null);
             setPopupSelectedMealUsers([]);
-            // setCookResponsibleId('');
+            setCookResponsibleId('');
             setSearchQuery('');
           }}
           editingMealPlan={editingMealPlan}
@@ -503,7 +521,8 @@ export default function PlanningPage() {
           setEditSelectedRecipe={setEditSelectedRecipe}
           popupSelectedMealUsers={popupSelectedMealUsers}
           setPopupSelectedMealUsers={setPopupSelectedMealUsers}
-          // setCookResponsibleId={setCookResponsibleId}
+          cookResponsibleId={cookResponsibleId}
+          setCookResponsibleId={setCookResponsibleId}
           mealUsers={mealUsers}
           onUpdate={updateMealPlan}
           onDelete={removeMealFromSlot}
@@ -522,6 +541,7 @@ export default function PlanningPage() {
             onMealCardClick={handleMealCardClick}
             onMealMove={handleMealMove}
             isMovingMeal={moveMealMutation.isPending}
+            filterCookResponsible={filterCookResponsible}
           />
         )}
       </div>

@@ -28,6 +28,7 @@ interface SimplePlanningGridProps {
   onMealCardClick: (meal: any, event: React.MouseEvent) => void;
   onMealMove?: (mealPlanId: string, newDay: number, newMealType: MealType) => void;
   isMovingMeal?: boolean;
+  filterCookResponsible?: string; // Filtre par cookResponsible
 }
 
 // Composant draggable simplifié
@@ -92,7 +93,8 @@ export default function SimplePlanningGrid({
   onSlotClick,
   onMealCardClick,
   onMealMove,
-  isMovingMeal = false
+  isMovingMeal = false,
+  filterCookResponsible
 }: SimplePlanningGridProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeMeal, setActiveMeal] = useState<any>(null);
@@ -124,10 +126,24 @@ export default function SimplePlanningGrid({
 
     if (!meal) return;
 
+    // Cas spécial : drop dans la zone des restes
+    if (slotId === 'leftovers-zone') {
+      // Si c'est déjà un reste, ne rien faire
+      if (meal.isLeftover) return;
+
+      // TODO: Implémenter la logique pour déplacer vers la zone des restes
+      // Pour l'instant, on garde la même logique de déplacement
+      console.log('Drop in leftovers zone - functionality to be implemented');
+      return;
+    }
+
     // Parse slot ID: format is "day-mealType"
     const [dayStr, ...mealTypeParts] = slotId.split('-');
     const targetDay = parseInt(dayStr);
     const targetMealType = mealTypeParts.join('-') as MealType;
+
+    // Vérifier que le parsing est valide
+    if (isNaN(targetDay) || !targetMealType) return;
 
     // Calculer la position actuelle du repas
     const currentMealDate = new Date(meal.mealDate);
@@ -187,7 +203,7 @@ export default function SimplePlanningGrid({
     return dayDate < today;
   };
 
-  const getMealsForSlot = (day: number, mealType: MealType) => {
+  const getMealsForSlot = (day: number, mealType: MealType, includeLeftovers: boolean = false) => {
     const mealTypeMap: Record<MealType, string> = {
       'Petit-déjeuner': 'BREAKFAST',
       'Déjeuner': 'LUNCH',
@@ -205,11 +221,23 @@ export default function SimplePlanningGrid({
                         mealDate.getMonth() === targetDate.getMonth() &&
                         mealDate.getDate() === targetDate.getDate();
 
-      return isSameDate && m.mealType === mealTypeMap[mealType];
+      const typeMatch = m.mealType === mealTypeMap[mealType];
+      const leftoverMatch = includeLeftovers ? true : !m.isLeftover;
+
+      return isSameDate && typeMatch && leftoverMatch;
     });
   };
 
-  const renderMealCard = (meal: any) => {
+  // Fonction pour récupérer tous les restes (déjà filtrés par cookResponsible côté API)
+  const getLeftoversForWeek = () => {
+    // Récupérer TOUS les restes - le filtrage par cookResponsible est déjà fait côté API
+    const leftovers = mealPlan.filter(m => m.isLeftover);
+
+
+    return leftovers;
+  };
+
+  const renderMealCard = (meal: any, showLeftoverInfo: boolean = false) => {
     // Mapping des types de repas
     const mealTypeLabels: Record<string, string> = {
       'BREAKFAST': 'Petit-déj',
@@ -220,7 +248,11 @@ export default function SimplePlanningGrid({
     return (
       <DraggableMealCard key={meal.id} meal={meal} disabled={isMovingMeal}>
         <div
-          className={`relative group bg-white rounded border border-orange-100 shadow-sm hover:shadow-md transition-all ${
+          className={`relative group rounded border shadow-sm hover:shadow-md transition-all ${
+            meal.isLeftover
+              ? 'bg-yellow-50 border-yellow-200 hover:border-yellow-300'
+              : 'bg-white border-orange-100'
+          } ${
             isMovingMeal ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
           }`}
           onClick={(e) => {
@@ -230,6 +262,13 @@ export default function SimplePlanningGrid({
             }
           }}
         >
+          {/* Badge "Reste" pour les restes */}
+          {meal.isLeftover && (
+            <div className="absolute -top-1 -left-1 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium z-10">
+              Reste
+            </div>
+          )}
+
           {/* Photo de la recette si existante */}
           {meal.recipe?.imageUrl && (
             <div className="w-full h-20 mb-2 overflow-hidden rounded-t">
@@ -247,9 +286,18 @@ export default function SimplePlanningGrid({
               {meal.recipe?.title || 'Recette supprimée'}
             </div>
 
+            {/* Informations sur les portions pour les restes */}
+            {showLeftoverInfo && meal.isLeftover && (
+              <div className="bg-yellow-100 px-2 py-1 rounded mb-2 text-xs">
+                <span className="font-medium text-yellow-800">
+                  {meal.portionsConsumed} portion{meal.portionsConsumed > 1 ? 's' : ''} restante{meal.portionsConsumed > 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+
             {/* Type de repas et nombre de personnes */}
             <div className="flex items-center justify-between text-xs">
-              
+
                 {meal.recipe.types.slice(0, 2).map((recipeType: any) => (
                   <RecipeTypeBadge
                     key={recipeType.id}
@@ -257,8 +305,12 @@ export default function SimplePlanningGrid({
                     size="sm"
                   />
                 ))}
-              
-              <span className="bg-green-100 px-2 py-1 rounded text-green-700 flex items-center font-medium">
+
+              <span className={`px-2 py-1 rounded flex items-center font-medium ${
+                meal.isLeftover
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-green-100 text-green-700'
+              }`}>
                 <Users className="h-3 w-3 mr-1" />
                 {meal.mealUserAssignments?.length || 0}
               </span>
@@ -378,6 +430,53 @@ export default function SimplePlanningGrid({
               })}
             </div>
           ))}
+        </div>
+
+        {/* Section des restes */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
+              Restes
+            </span>
+            Toutes les portions en attente
+            {getLeftoversForWeek().length > 0 && (
+              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium">
+                {getLeftoversForWeek().length}
+              </span>
+            )}
+          </h3>
+
+          {/* Zone droppable pour les restes */}
+          <DroppableSlot slotId="leftovers-zone" isPastDay={false}>
+            <Card className="min-h-32 p-4 border-dashed border-yellow-300 bg-yellow-50/30 hover:border-yellow-400 transition-all">
+              {getLeftoversForWeek().length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {getLeftoversForWeek().map((leftover) => (
+                    <div key={leftover.id}>
+                      {renderMealCard(leftover, true)}
+                    </div>
+                  ))}
+
+                  {/* Zone d'ajout pour nouveaux restes */}
+                  <div className="flex items-center justify-center min-h-24 border-2 border-dashed border-yellow-300 rounded-lg bg-yellow-50 hover:bg-yellow-100 transition-colors">
+                    <div className="text-center text-yellow-600">
+                      <Plus className="h-5 w-5 mx-auto mb-1" />
+                      <div className="text-xs">
+                        Glissez un repas ici
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-yellow-600 py-8">
+                  <div className="text-sm font-medium mb-2">Aucune portion en attente</div>
+                  <div className="text-xs text-yellow-500 max-w-md mx-auto">
+                    Les portions en attente apparaîtront automatiquement quand vous ajouterez des repas avec des portions minimales supérieures au nombre de personnes sélectionnées. Vous pourrez ensuite les glisser où vous voulez dans le planning.
+                  </div>
+                </div>
+              )}
+            </Card>
+          </DroppableSlot>
         </div>
 
         <DragOverlay>

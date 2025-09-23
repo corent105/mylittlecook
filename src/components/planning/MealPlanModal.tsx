@@ -36,6 +36,8 @@ interface MealPlanModalProps {
   // Communs
   popupSelectedMealUsers: string[];
   setPopupSelectedMealUsers: (users: string[]) => void;
+  cookResponsibleId: string;
+  setCookResponsibleId: (id: string) => void;
   mealUsers: any[];
   isLoading?: boolean;
 }
@@ -54,6 +56,8 @@ export default function MealPlanModal({
   weekStart,
   popupSelectedMealUsers,
   setPopupSelectedMealUsers,
+  cookResponsibleId,
+  setCookResponsibleId,
   mealUsers,
   isLoading = false
 }: MealPlanModalProps) {
@@ -253,30 +257,28 @@ export default function MealPlanModal({
           </div>
 
           {/* Cook Responsible Selection */}
-          {popupSelectedMealUsers.length > 0 && (
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <h4 className="font-medium text-sm mb-2">Qui cuisine ? (optionnel)</h4>
-              <div className="flex flex-wrap gap-2">
-                {mealUsers
-                  .filter(mealUser => popupSelectedMealUsers.includes(mealUser.id))
-                  .map(mealUser => (
-                    <Button
-                      key={mealUser.id}
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        // Cook selection disabled for now
-                      }}
-                    >
-                      👨‍🍳 {mealUser.pseudo}
-                    </Button>
-                  ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                La personne responsable de cuisiner ce repas
-              </p>
+          <div className="p-3 bg-orange-50 rounded-lg">
+            <h4 className="font-medium text-sm mb-2">Qui cuisine ? *</h4>
+            <div className="flex flex-wrap gap-2">
+              {mealUsers.map(mealUser => (
+                <Button
+                  key={mealUser.id}
+                  size="sm"
+                  variant={cookResponsibleId === mealUser.id ? "default" : "outline"}
+                  onClick={() => setCookResponsibleId(mealUser.id)}
+                  className={cookResponsibleId === mealUser.id ? "bg-orange-600 hover:bg-orange-700" : ""}
+                >
+                  👨‍🍳 {mealUser.pseudo}
+                </Button>
+              ))}
             </div>
-          )}
+            {!cookResponsibleId && (
+              <p className="text-xs text-red-500 mt-1">Veuillez sélectionner une personne responsable de la cuisine</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              La personne responsable de cuisiner ce repas
+            </p>
+          </div>
 
           {/* Recipe Selection Section */}
           <div className={mode === 'edit' ? "border-t pt-4" : ""}>
@@ -363,7 +365,7 @@ export default function MealPlanModal({
                   Annuler
                 </Button>
                 <Button
-                  disabled={!selectedRecipe || popupSelectedMealUsers.length === 0 || isLoading}
+                  disabled={!selectedRecipe || popupSelectedMealUsers.length === 0 || !cookResponsibleId || isLoading}
                   className="bg-orange-600 hover:bg-orange-700 flex-1"
                   onClick={handleAddRecipe}
                 >
@@ -401,7 +403,7 @@ export default function MealPlanModal({
                     Annuler
                   </Button>
                   <Button
-                    disabled={!selectedRecipe || popupSelectedMealUsers.length === 0}
+                    disabled={!selectedRecipe || popupSelectedMealUsers.length === 0 || !cookResponsibleId}
                     className="bg-orange-600 hover:bg-orange-700"
                     onClick={onUpdate}
                   >
