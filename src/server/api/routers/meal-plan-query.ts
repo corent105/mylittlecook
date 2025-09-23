@@ -346,4 +346,79 @@ export const mealPlanQueryRouter = createTRPCRouter({
       return leftoverMealPlans;
     }),
 
+  getMealPlanGroup: publicProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Récupérer le meal plan pour trouver le groupe
+      const mealPlan = await ctx.db.mealPlan.findUnique({
+        where: { id: input.mealPlanId },
+        select: { mealPlanGroupId: true, id: true }
+      });
+
+      if (!mealPlan) {
+        throw new Error('Meal plan not found');
+      }
+
+      // Déterminer l'ID du groupe racine
+      const groupRootId = mealPlan.mealPlanGroupId || mealPlan.id;
+
+      // Récupérer tous les meal plans du groupe (incluant le principal et tous ses dérivés)
+      const groupMealPlans = await ctx.db.mealPlan.findMany({
+        where: {
+          OR: [
+            { id: groupRootId }, // Le meal plan principal
+            { mealPlanGroupId: groupRootId } // Tous les dérivés (restes et repas convertis)
+          ]
+        },
+        include: {
+          recipe: {
+            include: {
+              types: true,
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          },
+          cookResponsible: true
+        },
+        orderBy: [
+          { isLeftover: 'asc' }, // Repas normaux en premier
+          { mealDate: 'asc' },
+          { createdAt: 'asc' }
+        ]
+      });
+
+      // Calculer les statistiques du groupe
+      const totalOriginalPortions = groupMealPlans[0]?.originalPortions || 0;
+      const assignedPortions = groupMealPlans
+        .filter(mp => !mp.isLeftover)
+        .reduce((sum, mp) => sum + (mp.portionsConsumed || 0), 0);
+      const leftoverPortions = groupMealPlans
+        .filter(mp => mp.isLeftover)
+        .reduce((sum, mp) => sum + (mp.portionsConsumed || 0), 0);
+
+      return {
+        groupRootId,
+        totalOriginalPortions,
+        assignedPortions,
+        leftoverPortions,
+        mealPlans: groupMealPlans,
+        summary: {
+          totalMealPlans: groupMealPlans.length,
+          activeMeals: groupMealPlans.filter(mp => !mp.isLeftover).length,
+          remainingLeftovers: groupMealPlans.filter(mp => mp.isLeftover).length,
+          utilizationRate: totalOriginalPortions > 0 ? (assignedPortions / totalOriginalPortions) * 100 : 0
+        }
+      };
+    }),
+
 });

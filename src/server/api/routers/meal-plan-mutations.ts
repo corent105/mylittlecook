@@ -2,6 +2,63 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
 import { MealType } from "@prisma/client";
 
+// Fonction utilitaire pour recalculer les restes d'un groupe
+async function recalculateLeftovers(ctx: any, groupRootId: string, totalOriginalPortions: number) {
+  // Récupérer tous les meal plans du groupe
+  const groupMealPlans = await ctx.db.mealPlan.findMany({
+    where: {
+      OR: [
+        { id: groupRootId },
+        { mealPlanGroupId: groupRootId }
+      ]
+    }
+  });
+
+  // Vérifier s'il y a encore des meal plans non-leftovers
+  const nonLeftoverMealPlans = groupMealPlans.filter((mp: any) => !mp.isLeftover);
+
+  // Supprimer tous les restes existants du groupe
+  await ctx.db.mealPlan.deleteMany({
+    where: {
+      mealPlanGroupId: groupRootId,
+      isLeftover: true
+    }
+  });
+
+  // Si plus aucun meal plan non-leftover, ne pas créer de nouveaux restes
+  if (nonLeftoverMealPlans.length === 0) {
+    return;
+  }
+
+  // Calculer les portions utilisées par tous les repas (non-leftovers)
+  const usedPortions = nonLeftoverMealPlans
+    .reduce((sum: number, mp: any) => sum + (mp.portionsConsumed || 0), 0);
+
+  const leftoverPortions = totalOriginalPortions - usedPortions;
+
+  // Créer un nouveau reste si nécessaire
+  if (leftoverPortions > 0) {
+    const mainMealPlan = groupMealPlans.find((mp: any) => !mp.mealPlanGroupId);
+    if (mainMealPlan) {
+      await ctx.db.mealPlan.create({
+        data: {
+          recipeId: mainMealPlan.recipeId,
+          mealDate: mainMealPlan.mealDate,
+          mealType: mainMealPlan.mealType,
+          cookResponsibleId: mainMealPlan.cookResponsibleId,
+          portionsConsumed: leftoverPortions,
+          originalPortions: totalOriginalPortions,
+          isLeftover: true,
+          mealPlanGroupId: groupRootId,
+          mealUserAssignments: {
+            create: []
+          }
+        }
+      });
+    }
+  }
+}
+
 export const mealPlanMutationRouter = createTRPCRouter({
   addMealToSlot: protectedProcedure
     .input(z.object({
@@ -133,57 +190,122 @@ export const mealPlanMutationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       // Récupérer le meal plan à supprimer
       const mealPlan = await ctx.db.mealPlan.findUnique({
-        where: { id: input.mealPlanId },
-        include: {
-          childMealPlans: true,
-          parentMealPlan: true
-        }
+        where: { id: input.mealPlanId }
       });
 
       if (!mealPlan) {
         throw new Error('Meal plan not found');
       }
 
-      // Si c'est un meal plan principal, supprimer aussi tous les restes liés
-      if (!mealPlan.isLeftover && mealPlan.childMealPlans.length > 0) {
-        await ctx.db.mealPlan.deleteMany({
-          where: {
-            mealPlanGroupId: input.mealPlanId
-          }
-        });
-      }
+      // Déterminer l'ID du groupe racine
+      const groupRootId = mealPlan.mealPlanGroupId || mealPlan.id;
+      const isMainMealPlan = !mealPlan.mealPlanGroupId;
 
-      // Si c'est un reste, recalculer les portions du meal plan principal
-      if (mealPlan.isLeftover && mealPlan.parentMealPlan) {
-        const parentMealPlan = mealPlan.parentMealPlan;
-        const newLeftoverPortions = (parentMealPlan.originalPortions || 0) - (parentMealPlan.portionsConsumed || 0) - (mealPlan.portionsConsumed || 0);
-
-        // Si il reste encore des portions, créer un nouveau meal plan de restes
-        if (newLeftoverPortions > 0) {
-          await ctx.db.mealPlan.create({
-            data: {
-              recipeId: parentMealPlan.recipeId,
-              mealDate: mealPlan.mealDate,
-              mealType: mealPlan.mealType,
-              cookResponsibleId: parentMealPlan.cookResponsibleId,
-              portionsConsumed: newLeftoverPortions,
-              originalPortions: parentMealPlan.originalPortions,
-              isLeftover: true,
-              mealPlanGroupId: parentMealPlan.id,
-              mealUserAssignments: {
-                create: []
-              }
-            }
-          });
-        }
-      }
-
-      // Supprimer le meal plan
-      await ctx.db.mealPlan.delete({
+      // Récupérer tous les meal plans du groupe AVANT suppression
+      const groupMealPlans = await ctx.db.mealPlan.findMany({
         where: {
-          id: input.mealPlanId
+          OR: [
+            { id: groupRootId },
+            { mealPlanGroupId: groupRootId }
+          ]
         }
       });
+
+      // Si on supprime le meal plan principal et qu'il y a d'autres meal plans dans le groupe
+      if (isMainMealPlan && groupMealPlans.length > 1) {
+        // Trouver le prochain meal plan à promouvoir comme principal
+        const nextMainMealPlan = groupMealPlans.find((mp: any) => mp.id !== input.mealPlanId && !mp.isLeftover);
+
+        if (nextMainMealPlan) {
+          // Promouvoir ce meal plan comme nouveau principal
+          await ctx.db.mealPlan.update({
+            where: { id: nextMainMealPlan.id },
+            data: {
+              mealPlanGroupId: null, // Devient le nouveau principal
+              originalPortions: mealPlan.originalPortions // Hérite des portions originales
+            }
+          });
+
+          // Mettre à jour tous les autres meal plans pour pointer vers le nouveau principal
+          await ctx.db.mealPlan.updateMany({
+            where: {
+              mealPlanGroupId: groupRootId,
+              id: { not: nextMainMealPlan.id }
+            },
+            data: {
+              mealPlanGroupId: nextMainMealPlan.id
+            }
+          });
+
+          // Nouveau groupe racine
+          const newGroupRootId = nextMainMealPlan.id;
+
+          // Supprimer le meal plan original
+          await ctx.db.mealPlan.delete({
+            where: { id: input.mealPlanId }
+          });
+
+          // Recalculer les restes avec le nouveau groupe
+          await recalculateLeftovers(ctx, newGroupRootId, mealPlan.originalPortions || 0);
+
+          return { success: true, newGroupRootId };
+        } else {
+          // Aucun autre meal plan non-leftover trouvé, supprimer tous les restes
+          await ctx.db.mealPlan.delete({
+            where: { id: input.mealPlanId }
+          });
+
+          // Supprimer tous les restes du groupe
+          await ctx.db.mealPlan.deleteMany({
+            where: {
+              mealPlanGroupId: groupRootId,
+              isLeftover: true
+            }
+          });
+
+          return { success: true, allLeftoversDeleted: true };
+        }
+      }
+
+      // Cas normal : suppression d'un meal plan non-principal ou dernier du groupe
+      const mainMealPlan = groupMealPlans.find((mp: any) => !mp.mealPlanGroupId) || groupMealPlans[0];
+      const totalOriginalPortions = mainMealPlan?.originalPortions || 0;
+
+      // Supprimer le meal plan demandé
+      await ctx.db.mealPlan.delete({
+        where: { id: input.mealPlanId }
+      });
+
+      // Si c'était le dernier meal plan du groupe, supprimer tous les restes associés
+      if (groupMealPlans.length === 1) {
+        // Supprimer tous les restes du groupe (s'il y en a)
+        await ctx.db.mealPlan.deleteMany({
+          where: {
+            mealPlanGroupId: groupRootId,
+            isLeftover: true
+          }
+        });
+        return { success: true };
+      }
+
+      // Vérifier s'il reste des meal plans non-leftovers après suppression
+      const remainingNonLeftovers = groupMealPlans.filter((mp: any) =>
+        mp.id !== input.mealPlanId && !mp.isLeftover
+      );
+
+      // Si plus aucun meal plan non-leftover, supprimer tous les restes
+      if (remainingNonLeftovers.length === 0) {
+        await ctx.db.mealPlan.deleteMany({
+          where: {
+            mealPlanGroupId: groupRootId,
+            isLeftover: true
+          }
+        });
+        return { success: true };
+      }
+
+      // Recalculer les restes
+      await recalculateLeftovers(ctx, groupRootId, totalOriginalPortions);
 
       return { success: true };
     }),
@@ -323,6 +445,125 @@ export const mealPlanMutationRouter = createTRPCRouter({
       return updatedMealPlan;
     }),
 
+  updateMealPlan: protectedProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+      recipeId: z.string().optional(),
+      mealDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val).optional(),
+      mealType: z.nativeEnum(MealType).optional(),
+      mealUserIds: z.array(z.string()).optional(),
+      cookResponsibleId: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Récupérer le meal plan existant
+      const existingMealPlan = await ctx.db.mealPlan.findUnique({
+        where: { id: input.mealPlanId }
+      });
+
+      if (!existingMealPlan) {
+        throw new Error('Meal plan not found');
+      }
+
+      const isMainMealPlan = !existingMealPlan.mealPlanGroupId;
+      let shouldRecalculateLeftovers = false;
+      let originalPortionsChanged = false;
+
+      // Préparer les données de mise à jour
+      const updateData: any = {};
+
+      if (input.recipeId) {
+        updateData.recipeId = input.recipeId;
+        // Si on change la recette du meal plan principal, il faut recalculer
+        if (isMainMealPlan) {
+          // Récupérer les infos de la nouvelle recette pour les portions
+          const newRecipe = await ctx.db.recipe.findUnique({
+            where: { id: input.recipeId }
+          });
+          if (newRecipe) {
+            const currentPortionsCount = input.mealUserIds?.length || existingMealPlan.portionsConsumed || 0;
+            const newOriginalPortions = Math.max(currentPortionsCount, newRecipe.minimalServings || newRecipe.servings || currentPortionsCount);
+            if (newOriginalPortions !== existingMealPlan.originalPortions) {
+              updateData.originalPortions = newOriginalPortions;
+              originalPortionsChanged = true;
+              shouldRecalculateLeftovers = true;
+            }
+          }
+        }
+      }
+
+      if (input.mealDate) updateData.mealDate = input.mealDate;
+      if (input.mealType) updateData.mealType = input.mealType;
+      if (input.cookResponsibleId) updateData.cookResponsibleId = input.cookResponsibleId;
+
+      // Si on change les utilisateurs assignés, mettre à jour les portions
+      if (input.mealUserIds) {
+        const newPortionsCount = input.mealUserIds.length;
+        updateData.portionsConsumed = newPortionsCount;
+        shouldRecalculateLeftovers = true;
+
+        // Si c'est le meal plan principal et que les nouvelles portions dépassent les originales
+        if (isMainMealPlan && newPortionsCount > (existingMealPlan.originalPortions || 0)) {
+          updateData.originalPortions = newPortionsCount;
+          originalPortionsChanged = true;
+        }
+
+        // Mettre à jour les assignations
+        updateData.mealUserAssignments = {
+          deleteMany: {}, // Supprimer toutes les assignations existantes
+          create: input.mealUserIds.map(mealUserId => ({
+            mealUserId
+          }))
+        };
+      }
+
+      // Mettre à jour le meal plan
+      const updatedMealPlan = await ctx.db.mealPlan.update({
+        where: { id: input.mealPlanId },
+        data: updateData,
+        include: {
+          recipe: {
+            include: {
+              types: true,
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          },
+          cookResponsible: true
+        }
+      });
+
+      // Si on a changé les portions originales du meal plan principal,
+      // mettre à jour tous les meal plans du groupe
+      if (isMainMealPlan && originalPortionsChanged) {
+        const groupRootId = existingMealPlan.id;
+        await ctx.db.mealPlan.updateMany({
+          where: {
+            mealPlanGroupId: groupRootId
+          },
+          data: {
+            originalPortions: updateData.originalPortions
+          }
+        });
+      }
+
+      // Recalculer les restes si nécessaire
+      if (shouldRecalculateLeftovers) {
+        const groupRootId = existingMealPlan.mealPlanGroupId || existingMealPlan.id;
+        const finalOriginalPortions = updateData.originalPortions || existingMealPlan.originalPortions || 0;
+        await recalculateLeftovers(ctx, groupRootId, finalOriginalPortions);
+      }
+
+      return updatedMealPlan;
+    }),
+
   updateLeftoverPortions: protectedProcedure
     .input(z.object({
       mealPlanId: z.string(),
@@ -425,5 +666,88 @@ export const mealPlanMutationRouter = createTRPCRouter({
       }
 
       return updatedMealPlan;
+    }),
+
+  convertLeftoverToMeal: protectedProcedure
+    .input(z.object({
+      mealPlanId: z.string(),
+      newMealDate: z.string().or(z.date()).transform((val) => typeof val === 'string' ? new Date(val) : val),
+      newMealType: z.nativeEnum(MealType),
+      mealUserIds: z.array(z.string()),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Vérifier que le meal plan existe et est un reste
+      const leftoverMealPlan = await ctx.db.mealPlan.findUnique({
+        where: { id: input.mealPlanId },
+        include: {
+          recipe: true,
+          mealUserAssignments: true
+        }
+      });
+
+      if (!leftoverMealPlan) {
+        throw new Error('Meal plan not found');
+      }
+
+      if (!leftoverMealPlan.isLeftover) {
+        throw new Error('Can only convert leftover meal plans');
+      }
+
+      // Vérifier qu'au moins un utilisateur est fourni
+      if (input.mealUserIds.length === 0) {
+        throw new Error('At least one meal user must be specified');
+      }
+
+      // Calculer les portions consommées basées sur le nombre d'utilisateurs
+      const requestedPortions = input.mealUserIds.length;
+      const availablePortions = leftoverMealPlan.portionsConsumed || 0;
+      const actualPortions = Math.min(requestedPortions, availablePortions);
+
+      // Mettre à jour le meal plan existant pour le convertir en repas normal
+      // Garder le lien mealPlanGroupId pour maintenir la traçabilité
+      const updatedMealPlan = await ctx.db.mealPlan.update({
+        where: { id: input.mealPlanId },
+        data: {
+          mealDate: input.newMealDate,
+          mealType: input.newMealType,
+          isLeftover: false,
+          portionsConsumed: actualPortions,
+          // Garder mealPlanGroupId pour maintenir le lien avec le groupe original
+          mealUserAssignments: {
+            deleteMany: {}, // Supprimer les assignations existantes
+            create: input.mealUserIds.map(mealUserId => ({
+              mealUserId
+            }))
+          }
+        },
+        include: {
+          recipe: {
+            include: {
+              types: true,
+              ingredients: {
+                include: {
+                  ingredient: true
+                }
+              }
+            }
+          },
+          mealUserAssignments: {
+            include: {
+              mealUser: true
+            }
+          },
+          cookResponsible: true
+        }
+      });
+
+      // Recalculer les restes pour le groupe
+      const groupRootId = leftoverMealPlan.mealPlanGroupId!;
+      const totalOriginalPortions = leftoverMealPlan.originalPortions || 0;
+      await recalculateLeftovers(ctx, groupRootId, totalOriginalPortions);
+
+      return {
+        convertedMealPlan: updatedMealPlan,
+        remainingPortions: availablePortions - actualPortions
+      };
     }),
 });

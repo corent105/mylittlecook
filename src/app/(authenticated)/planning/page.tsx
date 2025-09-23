@@ -218,6 +218,27 @@ export default function PlanningPage() {
     },
   });
 
+  const convertLeftoverMutation = api.mealPlanMutation.convertLeftoverToMeal.useMutation({
+    onSuccess: () => {
+      // Invalidate both week plans and leftovers
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      utils.mealPlan.getWeekPlan.invalidate({
+        mealUserIds: mealUsers.map(mu => mu.id),
+        startDate: weekStart,
+        endDate: weekEnd,
+      });
+      utils.mealPlan.getAllLeftoversByCook.invalidate();
+    },
+    onError: (error) => {
+      console.error('Error converting leftover:', error);
+      showAlert(
+        'Erreur de conversion',
+        'Impossible de convertir le reste en repas. Veuillez réessayer.',
+        'error'
+      );
+    },
+  });
 
   function getWeekStart(date: Date) {
     // Instead of getting Monday of the week, we return the date itself
@@ -453,6 +474,55 @@ export default function PlanningPage() {
     }
   };
 
+  const handleLeftoverConvert = async (mealPlanId: string, newDay: number, newMealType: MealType, mealUserIds: string[]) => {
+    try {
+      // Calculate the new meal date based on week start and day
+      const newMealDate = new Date(weekStart);
+      newMealDate.setHours(0, 0, 0, 0); // Normalize to start of day
+      newMealDate.setDate(weekStart.getDate() + newDay);
+
+      // Convert meal type to Prisma format
+      const prismaMealType = newMealType === 'Petit-déjeuner' ? 'BREAKFAST' :
+                            newMealType === 'Déjeuner' ? 'LUNCH' : 'DINNER';
+
+      // Si aucun utilisateur n'est fourni, utiliser par défaut le premier utilisateur seulement
+      // Cela permet un contrôle plus précis des portions lors du drag & drop
+      let finalMealUserIds = mealUserIds;
+      if (finalMealUserIds.length === 0) {
+        // Utiliser seulement le premier utilisateur par défaut (1 portion)
+        // L'utilisateur pourra ensuite modifier les assignations dans le modal d'édition
+        finalMealUserIds = mealUsers.length > 0 ? [mealUsers[0].id] : [];
+      }
+
+      console.log('Converting leftover to meal:', {
+        mealPlanId,
+        newDay,
+        newMealType,
+        prismaMealType,
+        newMealDate: newMealDate.toISOString(),
+        finalMealUserIds,
+        weekStart: weekStart.toISOString()
+      });
+
+      await convertLeftoverMutation.mutateAsync({
+        mealPlanId,
+        newMealDate,
+        newMealType: prismaMealType as any,
+        mealUserIds: finalMealUserIds,
+      });
+
+      console.log('Leftover converted successfully');
+    } catch (error) {
+      console.error('Error converting leftover:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      showAlert(
+        'Erreur de conversion',
+        `Impossible de convertir le reste: ${errorMessage}. Veuillez réessayer.`,
+        'error'
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
@@ -540,7 +610,8 @@ export default function PlanningPage() {
             onSlotClick={handleSlotClick}
             onMealCardClick={handleMealCardClick}
             onMealMove={handleMealMove}
-            isMovingMeal={moveMealMutation.isPending}
+            onLeftoverConvert={handleLeftoverConvert}
+            isMovingMeal={moveMealMutation.isPending || convertLeftoverMutation.isPending}
             filterCookResponsible={filterCookResponsible}
           />
         )}

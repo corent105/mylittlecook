@@ -27,6 +27,7 @@ interface SimplePlanningGridProps {
   onSlotClick: (day: number, mealType: MealType) => void;
   onMealCardClick: (meal: any, event: React.MouseEvent) => void;
   onMealMove?: (mealPlanId: string, newDay: number, newMealType: MealType) => void;
+  onLeftoverConvert?: (mealPlanId: string, newDay: number, newMealType: MealType, mealUserIds: string[]) => void;
   isMovingMeal?: boolean;
   filterCookResponsible?: string; // Filtre par cookResponsible
 }
@@ -93,6 +94,7 @@ export default function SimplePlanningGrid({
   onSlotClick,
   onMealCardClick,
   onMealMove,
+  onLeftoverConvert,
   isMovingMeal = false,
   filterCookResponsible
 }: SimplePlanningGridProps) {
@@ -119,7 +121,7 @@ export default function SimplePlanningGrid({
     setActiveId(null);
     setActiveMeal(null);
 
-    if (!over || !onMealMove) return;
+    if (!over) return;
 
     const meal = active.data.current;
     const slotId = over.id as string;
@@ -144,6 +146,17 @@ export default function SimplePlanningGrid({
 
     // Vérifier que le parsing est valide
     if (isNaN(targetDay) || !targetMealType) return;
+
+    // Si c'est un reste qu'on fait glisser vers un créneau
+    if (meal.isLeftover && onLeftoverConvert) {
+      // Pour les restes, utiliser tous les utilisateurs par défaut
+      // La fonction handleLeftoverConvert côté parent gèrera la logique des utilisateurs
+      onLeftoverConvert(meal.id, targetDay, targetMealType, []);
+      return;
+    }
+
+    // Cas normal : déplacement d'un repas existant
+    if (!onMealMove) return;
 
     // Calculer la position actuelle du repas
     const currentMealDate = new Date(meal.mealDate);
