@@ -9,19 +9,30 @@ import ShoppingListFilters from "@/components/shopping-list/ShoppingListFilters"
 import RecipesSummary from "@/components/shopping-list/RecipesSummary";
 import ShoppingListContent from "@/components/shopping-list/ShoppingListContent";
 import { ShoppingListSkeleton } from "@/components/skeleton/ShoppingListSkeleton";
-
-type DateFilterType = 'today' | 'week' | 'twoWeeks' | 'custom';
+import type { ShoppingListFilters as FilterType, ShoppingListFilterActions, DateFilterType } from "@/types/shopping-list-filters";
 
 export default function ShoppingListPage() {
   const { data: session } = useSession();
   const { showAlert, AlertDialogComponent } = useAlertDialog();
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
-  const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
-  const [showRecipes, setShowRecipes] = useState(false);
-  const [cookFilter, setCookFilter] = useState<string>('all'); // 'all' or specific cook ID
-  const [dateFilter, setDateFilter] = useState<DateFilterType>('week');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+
+  // Consolidated filter state
+  const [filters, setFilters] = useState<FilterType>({
+    selectedMealUsers: [],
+    cookFilter: 'all',
+    dateFilter: 'week',
+    customStartDate: '',
+    customEndDate: ''
+  });
+
+  // Filter actions
+  const filterActions: ShoppingListFilterActions = {
+    setSelectedMealUsers: (users: string[]) => setFilters(prev => ({ ...prev, selectedMealUsers: users })),
+    setCookFilter: (filter: string) => setFilters(prev => ({ ...prev, cookFilter: filter })),
+    setDateFilter: (filter: DateFilterType) => setFilters(prev => ({ ...prev, dateFilter: filter })),
+    setCustomStartDate: (date: string) => setFilters(prev => ({ ...prev, customStartDate: date })),
+    setCustomEndDate: (date: string) => setFilters(prev => ({ ...prev, customEndDate: date }))
+  };
 
 
   const getDateRange = () => {
@@ -31,7 +42,7 @@ export default function ShoppingListPage() {
     // Créer une date pour aujourd'hui en local (pas UTC)
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    switch (dateFilter) {
+    switch (filters.dateFilter) {
       case 'today':
         // Pour aujourd'hui : de aujourd'hui 00:00 à aujourd'hui 23:59
         const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -48,14 +59,14 @@ export default function ShoppingListPage() {
         return { startDate: today, endDate: twoWeeksEnd };
 
       case 'custom':
-        if (!customStartDate || !customEndDate) {
+        if (!filters.customStartDate || !filters.customEndDate) {
           // Fallback: utilise aujourd'hui + 6 jours si pas de dates personnalisées
           const fallbackEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 6, 23, 59, 59, 999);
           return { startDate: today, endDate: fallbackEnd };
         }
         // Pour les dates personnalisées, on utilise directement les valeurs saisies
-        const customStart = new Date(customStartDate + 'T00:00:00');
-        const customEnd = new Date(customEndDate + 'T23:59:59');
+        const customStart = new Date(filters.customStartDate + 'T00:00:00');
+        const customEnd = new Date(filters.customEndDate + 'T23:59:59');
         return { startDate: customStart, endDate: customEnd };
 
       default:
@@ -73,46 +84,46 @@ export default function ShoppingListPage() {
 
   // Auto-select user's meal users when they are loaded
   useEffect(() => {
-    if (mealUsers.length > 0 && selectedMealUsers.length === 0) {
+    if (mealUsers.length > 0 && filters.selectedMealUsers.length === 0) {
       const allIds = mealUsers.map(mu => mu.id);
-      setSelectedMealUsers(allIds);
+      filterActions.setSelectedMealUsers(allIds);
     }
-  }, [mealUsers, selectedMealUsers.length]);
+  }, [mealUsers, filters.selectedMealUsers.length]);
 
   const { data: shoppingList = [], isLoading } = api.shoppingList.generateShoppingList.useQuery({
-    mealUserIds: selectedMealUsers,
+    mealUserIds: filters.selectedMealUsers,
     startDate,
     endDate,
   }, {
-    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+    enabled: session?.user?.id !== undefined && (filters.selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
   // Get meal plans for the period to show recipes summary (filtered by cook responsible)
   const { data: weekMealPlans = [] } = api.mealPlan.getWeekPlan.useQuery({
-    mealUserIds: selectedMealUsers,
+    mealUserIds: filters.selectedMealUsers,
     startDate,
     endDate,
   }, {
-    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+    enabled: session?.user?.id !== undefined && (filters.selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
   // Filter meal plans by cook responsible for recipes display
   const filteredMealPlans = weekMealPlans.filter((mealPlan: any) => {
-    if (cookFilter === 'all') return true;
+    if (filters.cookFilter === 'all') return true;
     // Use the first meal user assignment as the cook
-    return mealPlan.mealUserAssignments?.[0]?.mealUserId === cookFilter;
+    return mealPlan.mealUserAssignments?.[0]?.mealUserId === filters.cookFilter;
   });
 
   // Get available cooks for filtering
   const { data: availableCooks = [] } = api.mealPlan.getCooksForWeek.useQuery({
-    mealUserIds: selectedMealUsers,
+    mealUserIds: filters.selectedMealUsers,
     startDate,
   }, {
-    enabled: session?.user?.id !== undefined && (selectedMealUsers.length > 0 || mealUsers.length > 0)
+    enabled: session?.user?.id !== undefined && (filters.selectedMealUsers.length > 0 || mealUsers.length > 0)
   });
 
   const formatDateRange = () => {
-    switch (dateFilter) {
+    switch (filters.dateFilter) {
       case 'today':
         return `Aujourd'hui - ${startDate.toLocaleDateString('fr-FR', {
           weekday: 'long',
@@ -303,14 +314,8 @@ export default function ShoppingListPage() {
         />
 
         <ShoppingListFilters
-          dateFilter={dateFilter}
-          setDateFilter={setDateFilter}
-          customStartDate={customStartDate}
-          setCustomStartDate={setCustomStartDate}
-          customEndDate={customEndDate}
-          setCustomEndDate={setCustomEndDate}
-          cookFilter={cookFilter}
-          setCookFilter={setCookFilter}
+          filters={filters}
+          filterActions={filterActions}
           availableCooks={availableCooks}
           formatDateRange={formatDateRange}
           weekMealPlans={weekMealPlans}
@@ -329,7 +334,7 @@ export default function ShoppingListPage() {
             shoppingList={shoppingList}
             checkedItems={checkedItems}
             onToggleItem={toggleItem}
-            cookFilter={cookFilter}
+            filters={filters}
             availableCooks={availableCooks}
           />
         )}

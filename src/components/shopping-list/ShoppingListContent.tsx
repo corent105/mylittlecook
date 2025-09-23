@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ShoppingCart, Check } from "lucide-react";
 import Link from "next/link";
+import type { ShoppingListFilters } from "@/types/shopping-list-filters";
 
 interface ShoppingListContentProps {
   shoppingList: any[];
   checkedItems: Set<string>;
   onToggleItem: (ingredientId: string) => void;
-  cookFilter: string;
+  filters: ShoppingListFilters;
   availableCooks: Array<{ id: string; pseudo: string }>;
 }
 
@@ -18,7 +19,7 @@ export default function ShoppingListContent({
   shoppingList,
   checkedItems,
   onToggleItem,
-  cookFilter,
+  filters,
   availableCooks
 }: ShoppingListContentProps) {
   const groupedIngredients = shoppingList.reduce((acc, item) => {
@@ -57,17 +58,17 @@ export default function ShoppingListContent({
           <div className="flex-1">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900">
               Résumé de la liste
-              {cookFilter !== 'all' && (
+              {filters.cookFilter !== 'all' && (
                 <span className="block sm:inline text-sm font-normal text-orange-600 sm:ml-2">
-                  (Filtré par {availableCooks.find(c => c.id === cookFilter)?.pseudo})
+                  (Filtré par {availableCooks.find(c => c.id === filters.cookFilter)?.pseudo})
                 </span>
               )}
             </h3>
             <p className="text-sm sm:text-base text-gray-600">
               {shoppingList.length} ingrédients à acheter
-              {cookFilter !== 'all' && availableCooks.length > 0 && (
+              {filters.cookFilter !== 'all' && availableCooks.length > 0 && (
                 <span className="block sm:inline text-sm text-orange-600 sm:ml-1">
-                  - {availableCooks.find(c => c.id === cookFilter)?.pseudo} 👨‍🍳
+                  - {availableCooks.find(c => c.id === filters.cookFilter)?.pseudo} 👨‍🍳
                 </span>
               )}
             </p>

@@ -5,40 +5,27 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar, Clock } from "lucide-react";
-
-type DateFilterType = 'today' | 'week' | 'twoWeeks' | 'custom';
+import type { ShoppingListFilters, ShoppingListFilterActions, DateFilterType } from "@/types/shopping-list-filters";
 
 interface ShoppingListFiltersProps {
-  dateFilter: DateFilterType;
-  setDateFilter: (filter: DateFilterType) => void;
-  customStartDate: string;
-  setCustomStartDate: (date: string) => void;
-  customEndDate: string;
-  setCustomEndDate: (date: string) => void;
-  cookFilter: string;
-  setCookFilter: (filter: string) => void;
+  filters: ShoppingListFilters;
+  filterActions: ShoppingListFilterActions;
   availableCooks: Array<{ id: string; pseudo: string }>;
   formatDateRange: () => string;
   weekMealPlans: any[];
 }
 
 export default function ShoppingListFilters({
-  dateFilter,
-  setDateFilter,
-  customStartDate,
-  setCustomStartDate,
-  customEndDate,
-  setCustomEndDate,
-  cookFilter,
-  setCookFilter,
+  filters,
+  filterActions,
   availableCooks,
   formatDateRange,
   weekMealPlans
 }: ShoppingListFiltersProps) {
   const handleDateFilterChange = (newFilter: DateFilterType) => {
-    setDateFilter(newFilter);
+    filterActions.setDateFilter(newFilter);
 
-    if (newFilter === 'custom' && (!customStartDate || !customEndDate)) {
+    if (newFilter === 'custom' && (!filters.customStartDate || !filters.customEndDate)) {
       const today = new Date();
       const weekStart = new Date(today);
       const day = weekStart.getDay();
@@ -48,8 +35,8 @@ export default function ShoppingListFilters({
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
 
-      setCustomStartDate(weekStart.toISOString().split('T')[0]);
-      setCustomEndDate(weekEnd.toISOString().split('T')[0]);
+      filterActions.setCustomStartDate(weekStart.toISOString().split('T')[0]);
+      filterActions.setCustomEndDate(weekEnd.toISOString().split('T')[0]);
     }
   };
 
@@ -77,7 +64,7 @@ export default function ShoppingListFilters({
           {/* Quick Filter Buttons */}
           <div className="flex flex-wrap gap-2">
             <Button
-              variant={dateFilter === 'today' ? 'default' : 'outline'}
+              variant={filters.dateFilter === 'today' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleDateFilterChange('today')}
               className="flex items-center gap-2"
@@ -86,7 +73,7 @@ export default function ShoppingListFilters({
               Aujourd'hui
             </Button>
             <Button
-              variant={dateFilter === 'week' ? 'default' : 'outline'}
+              variant={filters.dateFilter === 'week' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleDateFilterChange('week')}
               className="flex items-center gap-2"
@@ -95,7 +82,7 @@ export default function ShoppingListFilters({
               7 jours
             </Button>
             <Button
-              variant={dateFilter === 'twoWeeks' ? 'default' : 'outline'}
+              variant={filters.dateFilter === 'twoWeeks' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleDateFilterChange('twoWeeks')}
               className="flex items-center gap-2"
@@ -104,7 +91,7 @@ export default function ShoppingListFilters({
               14 jours
             </Button>
             <Button
-              variant={dateFilter === 'custom' ? 'default' : 'outline'}
+              variant={filters.dateFilter === 'custom' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleDateFilterChange('custom')}
               className="flex items-center gap-2"
@@ -115,7 +102,7 @@ export default function ShoppingListFilters({
           </div>
 
           {/* Custom Date Range */}
-          {dateFilter === 'custom' && (
+          {filters.dateFilter === 'custom' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -123,10 +110,10 @@ export default function ShoppingListFilters({
                 </label>
                 <Input
                   type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  value={filters.customStartDate}
+                  onChange={(e) => filterActions.setCustomStartDate(e.target.value)}
                   className="w-full"
-                  max={customEndDate || undefined}
+                  max={filters.customEndDate || undefined}
                 />
               </div>
               <div>
@@ -135,13 +122,13 @@ export default function ShoppingListFilters({
                 </label>
                 <Input
                   type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  value={filters.customEndDate}
+                  onChange={(e) => filterActions.setCustomEndDate(e.target.value)}
                   className="w-full"
-                  min={customStartDate || undefined}
+                  min={filters.customStartDate || undefined}
                 />
               </div>
-              {customStartDate && customEndDate && new Date(customStartDate) > new Date(customEndDate) && (
+              {filters.customStartDate && filters.customEndDate && new Date(filters.customStartDate) > new Date(filters.customEndDate) && (
                 <div className="col-span-full">
                   <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md border border-red-200">
                     ⚠️ La date de début ne peut pas être postérieure à la date de fin
@@ -164,7 +151,7 @@ export default function ShoppingListFilters({
               </p>
             </div>
             <div className="w-full md:w-48">
-              <Select value={cookFilter} onValueChange={setCookFilter}>
+              <Select value={filters.cookFilter} onValueChange={filterActions.setCookFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un filtre" />
                 </SelectTrigger>

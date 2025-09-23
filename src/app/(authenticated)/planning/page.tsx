@@ -1,13 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Calendar } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import NextMeals from "@/components/NextMeals";
 import MealPlanModal from "@/components/planning/MealPlanModal";
 import { useAlertDialog } from "@/components/ui/alert-dialog-custom";
@@ -15,7 +10,6 @@ import PlanningFilters from "@/components/planning/PlanningFilters";
 import WeekNavigation from "@/components/planning/WeekNavigation";
 import SimplePlanningGrid from "@/components/planning/SimplePlanningGrid";
 import { PlanningGridSkeleton } from "@/components/skeleton/PlanningGridSkeleton";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const MEAL_TYPES = ['Petit-déjeuner', 'Déjeuner', 'Dîner'] as const;
 
@@ -31,7 +25,6 @@ export default function PlanningPage() {
     return today;
   });
   const [selectedSlot, setSelectedSlot] = useState<{day: number, mealType: MealType} | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedMealUsers, setSelectedMealUsers] = useState<string[]>([]);
   const [popupSelectedMealUsers, setPopupSelectedMealUsers] = useState<string[]>([]);
   const [cookResponsibleId, setCookResponsibleId] = useState<string>('');
@@ -269,10 +262,6 @@ export default function PlanningPage() {
     setCurrentWeek(newWeek);
   };
 
-
-
-
-
   const handleSlotClick = (day: number, mealType: MealType) => {
     console.log('Slot clicked:', day, mealType);
     setSelectedSlot({ day, mealType });
@@ -361,7 +350,6 @@ export default function PlanningPage() {
       
       console.log('Recipe added successfully:', result);
       setSelectedSlot(null);
-      setSearchQuery('');
       setPopupSelectedMealUsers([]);
       setCookResponsibleId('');
     } catch (error) {
@@ -425,7 +413,6 @@ export default function PlanningPage() {
       setEditSelectedRecipe(null);
       setPopupSelectedMealUsers([]);
       setCookResponsibleId('');
-      setSearchQuery('');
     } catch (error) {
       console.error('Error updating meal plan:', error);
       showAlert(
@@ -561,7 +548,6 @@ export default function PlanningPage() {
           isOpen={!!selectedSlot}
           onClose={() => {
             setSelectedSlot(null);
-            setSearchQuery('');
             setPopupSelectedMealUsers([]);
             setCookResponsibleId('');
           }}
@@ -584,7 +570,6 @@ export default function PlanningPage() {
             setEditSelectedRecipe(null);
             setPopupSelectedMealUsers([]);
             setCookResponsibleId('');
-            setSearchQuery('');
           }}
           editingMealPlan={editingMealPlan}
           editSelectedRecipe={editSelectedRecipe}
